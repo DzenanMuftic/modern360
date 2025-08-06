@@ -1,0 +1,515 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Edit Assessment - Modern360 Admin{% endblock %}
+
+{% block content %}
+<style>
+.btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="fas fa-edit me-2 text-primary"></i>Edit Assessment
+    </h1>
+    <a href="{{ url_for('admin_assessments') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Assessments
+    </a>
+</div>
+
+<form method="POST" id="assessmentForm">
+    <div class="row">
+        <div class="col-12">
+            <!-- Assessment Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Assessment Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">
+                            <i class="fas fa-heading me-1"></i>Assessment Title *
+                        </label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="{{ assessment.title }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">
+                            <i class="fas fa-align-left me-1"></i>Description
+                        </label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="3">{{ assessment.description or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company Selection -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building me-2"></i>Company Selection
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="company_id" class="form-label">
+                            <i class="fas fa-building me-1"></i>Company *
+                        </label>
+                        <div class="input-group">
+                            <select class="form-select" id="company_id" name="company_id" required>
+                                <option value="">Select Company</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}" 
+                                        {{ 'selected' if assessment.company_id == company.id else '' }}>
+                                    {{ company.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" onclick="openAddCompanyModal()">
+                                <i class="fas fa-plus me-1"></i>Add New Company
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assessment Details Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Assessment Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="language" class="form-label">
+                                    <i class="fas fa-language me-1"></i>Language
+                                </label>
+                                <select class="form-select" id="language" name="language">
+                                    <option value="en" {{ 'selected' if assessment.language == 'en' else '' }}>English</option>
+                                    <option value="bs" {{ 'selected' if assessment.language == 'bs' else '' }}>Bosanski</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="deadline" class="form-label">
+                                    <i class="fas fa-calendar me-1"></i>Deadline (Optional)
+                                </label>
+                                <input type="datetime-local" class="form-control" id="deadline" name="deadline"
+                                       value="{{ assessment.deadline.strftime('%Y-%m-%dT%H:%M') if assessment.deadline else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="creator_id" class="form-label">
+                                    <i class="fas fa-user me-1"></i>Creator
+                                </label>
+                                <select class="form-select" id="creator_id" name="creator_id">
+                                    <option value="">Select creator (optional)</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {{ 'selected' if assessment.creator_id == user.id else '' }}>
+                                        {{ user.name }} ({{ user.email }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                       {{ 'checked' if assessment.is_active else '' }}>
+                                <label class="form-check-label" for="is_active">
+                                    <i class="fas fa-power-off me-1"></i>Active Assessment
+                                </label>
+                                <small class="form-text text-muted d-block">
+                                    Inactive assessments cannot receive new responses
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_self_assessment" name="is_self_assessment"
+                                       {{ 'checked' if assessment.is_self_assessment else '' }}>
+                                <label class="form-check-label" for="is_self_assessment">
+                                    <i class="fas fa-user-check me-1"></i>Self Assessment Only
+                                </label>
+                                <small class="form-text text-muted d-block">
+                                    Only the creator can complete this assessment
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Assessment Information -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Assessment Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-calendar-plus fa-2x text-primary mb-2"></i>
+                                <div><strong>Created:</strong></div>
+                                <small>{{ assessment.created_at.strftime('%m/%d/%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-user fa-2x text-info mb-2"></i>
+                                <div><strong>Creator:</strong></div>
+                                <small>{{ assessment.creator.name }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-question-circle fa-2x text-success mb-2"></i>
+                                <div><strong>Questions:</strong></div>
+                                <small>{{ assessment.questions|length }} questions</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-check-circle fa-2x text-warning mb-2"></i>
+                                <div><strong>Responses:</strong></div>
+                                <small>{{ assessment.responses|length }} submitted</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participants Management -->
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Assessment Participants
+                    </h5>
+                    <div>
+                        <button type="button" class="btn btn-outline-success btn-sm me-2" onclick="openAddAssesseeModal()">
+                            <i class="fas fa-user-plus me-1"></i>Add Assessee
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="openAddAssessorModal()">
+                            <i class="fas fa-user-tie me-1"></i>Add Assessor
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Current Participants Display -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-user-check me-2"></i>Assessees</h6>
+                            <div id="current-assessees" class="border rounded p-3" style="min-height: 100px;">
+                                {% if assessment.assessees %}
+                                    {% for assessee in assessment.assessees %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                        <div>
+                                            <strong>{{ assessee.name }}</strong><br>
+                                            <small class="text-muted">{{ assessee.email }}</small>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeAssessee({{ assessee.id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-muted text-center">
+                                        <i class="fas fa-user-plus fa-2x mb-2"></i>
+                                        <p class="mb-0">No assessees added yet.</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-user-tie me-2"></i>Assessors</h6>
+                            <div id="current-assessors" class="border rounded p-3" style="min-height: 100px;">
+                                {% if assessment.assessors %}
+                                    {% for assessor in assessment.assessors %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                        <div>
+                                            <strong>{{ assessor.name }}</strong><br>
+                                            <small class="text-muted">{{ assessor.email }}</small>
+                                            <span class="badge bg-info">{{ assessor.role.title() }}</span>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeAssessor({{ assessor.id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-muted text-center">
+                                        <i class="fas fa-user-plus fa-2x mb-2"></i>
+                                        <p class="mb-0">No assessors added yet.</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Changes to participants will take effect immediately upon saving.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions Preview -->
+            {% if assessment.questions %}
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>Assessment Questions ({{ assessment.questions|length }})
+                    </h5>
+                    <div>
+                        <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="addQuestion()">
+                            <i class="fas fa-plus me-1"></i>Add Question
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="reorderQuestions()">
+                            <i class="fas fa-sort me-1"></i>Reorder
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="15%">Group</th>
+                                    <th width="50%">Question</th>
+                                    <th width="10%">Type</th>
+                                    <th width="10%">Language</th>
+                                    <th width="10%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for question in assessment.questions|sort(attribute='order') %}
+                                <tr>
+                                    <td>{{ question.order + 1 }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ question.question_group or 'General' }}</span>
+                                    </td>
+                                    <td>{{ question.question_text[:80] }}{{ '...' if question.question_text|length > 80 else '' }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ question.question_type }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ question.language.upper() }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" onclick="editQuestion({{ question.id }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger" onclick="deleteQuestion({{ question.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a href="{{ url_for('admin_assessment_participants', assessment_id=assessment.id) }}" 
+                               class="btn btn-info me-2">
+                                <i class="fas fa-users me-2"></i>Manage Participants
+                            </a>
+                            <button type="button" class="btn btn-outline-info" onclick="previewAssessment()">
+                                <i class="fas fa-eye me-2"></i>Preview Assessment
+                            </button>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('admin_assessments') }}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Update Assessment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Add Company Modal -->
+<div class="modal fade" id="addCompanyModal" tabindex="-1" aria-labelledby="addCompanyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCompanyModalLabel">
+                    <i class="fas fa-building me-2"></i>Add New Company
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCompanyForm">
+                    <div class="mb-3">
+                        <label for="companyName" class="form-label">Company Name *</label>
+                        <input type="text" class="form-control" id="companyName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="companyDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="companyDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addCompany()">
+                    <i class="fas fa-plus me-1"></i>Add Company
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add JavaScript functions for modals and dynamic functionality
+function openAddCompanyModal() {
+    var modal = new bootstrap.Modal(document.getElementById('addCompanyModal'));
+    modal.show();
+}
+
+function addCompany() {
+    // Implementation for adding company
+    console.log('Add company functionality');
+}
+
+function openAddAssesseeModal() {
+    // Implementation for adding assessee
+    console.log('Add assessee functionality');
+}
+
+function openAddAssessorModal() {
+    // Implementation for adding assessor
+    console.log('Add assessor functionality');
+}
+
+function removeAssessee(id) {
+    // Implementation for removing assessee
+    console.log('Remove assessee:', id);
+}
+
+function removeAssessor(id) {
+    // Implementation for removing assessor
+    console.log('Remove assessor:', id);
+}
+
+function addQuestion() {
+    // Implementation for adding question
+    console.log('Add question functionality');
+}
+
+function editQuestion(id) {
+    // Implementation for editing question
+    console.log('Edit question:', id);
+}
+
+function deleteQuestion(id) {
+    // Implementation for deleting question
+    console.log('Delete question:', id);
+}
+
+function reorderQuestions() {
+    // Implementation for reordering questions
+    console.log('Reorder questions functionality');
+}
+
+function previewAssessment() {
+    // Implementation for previewing assessment
+    console.log('Preview assessment functionality');
+}
+</script>
+
+{% endblock %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6><i class="fas fa-question-circle me-2"></i>Assessment Questions ({{ assessment.questions|length }})</h6>
+                    <div class="alert alert-light">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th width="5%">#</th>
+                                        <th width="15%">Group</th>
+                                        <th width="60%">Question</th>
+                                        <th width="10%">Type</th>
+                                        <th width="10%">Language</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for question in assessment.questions|sort(attribute='order') %}
+                                    <tr>
+                                        <td>{{ question.order + 1 }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ question.question_group or 'General' }}</span>
+                                        </td>
+                                        <td>{{ question.question_text[:80] }}{{ '...' if question.question_text|length > 80 else '' }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ question.question_type }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">{{ question.language.upper() }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Note: Questions cannot be edited here. Create a new assessment with updated questions if needed.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="d-flex justify-content-between mt-4">
+                <div>
+                    <a href="{{ url_for('admin_assessment_participants', assessment_id=assessment.id) }}" 
+                       class="btn btn-info">
+                        <i class="fas fa-users me-2"></i>Manage Participants
+                    </a>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin_assessments') }}" class="btn btn-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Assessment
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

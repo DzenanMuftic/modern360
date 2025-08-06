@@ -1,0 +1,9 @@
+# Render deployment configuration for Modern360 Assessment Platform
+# Using Procfile-based deployment
+
+# Shared PostgreSQL Database
+databases:
+  - name: modern360-db
+    databaseName: modern360
+    user: modern360user
+    plan: free
