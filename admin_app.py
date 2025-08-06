@@ -843,15 +843,8 @@ def admin_add_participant(assessment_id):
         flash('Assessee is required!', 'error')
         return redirect(url_for('admin_assessment_participants', assessment_id=assessment_id))
     
-    # Check if assessee already exists for this assessment
-    existing = AssessmentParticipant.query.filter_by(
-        assessment_id=assessment_id, 
-        assessee_id=assessee_id
-    ).first()
-    
-    if existing:
-        flash('This assessee is already part of this assessment!', 'error')
-        return redirect(url_for('admin_assessment_participants', assessment_id=assessment_id))
+    # Note: Removed check for existing assessee to allow duplicates
+    # This allows the same person to be added multiple times as an assessee
     
     # Add self-assessment participant (assessee assessing themselves)
     self_participant = AssessmentParticipant(
@@ -900,7 +893,7 @@ def admin_send_assessment_invitations(assessment_id):
             db.session.add(invitation)
             
             try:
-                send_self_assessment_invitation(participant.assessee.email, assessment, token)
+                send_self_assessment_invitation(participant.assessee.email, assessment, token, participant.assessee.name)
                 sent_count += 1
             except Exception as e:
                 print(f"Error sending self-assessment invitation: {e}")
@@ -918,7 +911,7 @@ def admin_send_assessment_invitations(assessment_id):
             
             try:
                 send_assessor_invitation(participant.assessor.email, assessment, 
-                                       participant.assessee.name, token)
+                                       participant.assessee.name, token, participant.assessor_relationship)
                 sent_count += 1
             except Exception as e:
                 print(f"Error sending assessor invitation: {e}")
@@ -1090,7 +1083,7 @@ def send_reminder(invitation_id):
     
     return redirect(url_for('admin_notifications'))
 
-def send_self_assessment_invitation(email, assessment, token):
+def send_self_assessment_invitation(email, assessment, token, assessee_name=None):
     """Send self-assessment invitation email"""
     try:
         msg = Message(
@@ -1099,8 +1092,10 @@ def send_self_assessment_invitation(email, assessment, token):
         )
         
         # Create the invitation URL (pointing to main app)
-        main_app_url = os.environ.get('MAIN_APP_URL', 'http://localhost:5000')
+        main_app_url = os.environ.get('MAIN_APP_URL', 'http://65.21.185.169:5000')
         invitation_url = f"{main_app_url}/respond/{token}"
+        
+        display_name = assessee_name or "yourself"
         
         msg.html = f"""
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa;">
@@ -1113,7 +1108,7 @@ def send_self_assessment_invitation(email, assessment, token):
                 <h2 style="color: #333; margin-bottom: 20px; font-size: 24px; font-weight: 400;">Self-Assessment Invitation</h2>
                 
                 <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-                    You have been invited to complete a self-assessment:
+                    You have been invited to complete a self-assessment for <strong>{display_name}</strong>:
                 </p>
                 
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1976d2;">
@@ -1122,7 +1117,7 @@ def send_self_assessment_invitation(email, assessment, token):
                 </div>
                 
                 <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-                    {assessment.description or 'Please complete this self-assessment to evaluate your own performance.'}
+                    {assessment.description or 'Please complete this self-assessment to evaluate your own performance and professional development.'}
                 </p>
                 
                 <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
@@ -1135,7 +1130,9 @@ def send_self_assessment_invitation(email, assessment, token):
                 
                 <div style="margin-top: 30px; padding: 15px; background-color: #e8f5e8; border-radius: 6px; border-left: 4px solid #4caf50;">
                     <p style="color: #2e7d32; font-size: 14px; margin: 0;">
-                        <strong>Note:</strong> This is a self-assessment where you will evaluate your own performance and skills.
+                        <strong>Assessment Type:</strong> Self-Assessment<br>
+                        <strong>Your Role:</strong> Evaluate your own performance<br>
+                        <strong>Time Required:</strong> Approximately 10-15 minutes
                     </p>
                 </div>
                 
@@ -1149,7 +1146,8 @@ def send_self_assessment_invitation(email, assessment, token):
             
             <div style="padding: 20px 30px; background-color: #f8f9fa; text-align: center; border-top: 1px solid #dee2e6;">
                 <p style="color: #6c757d; font-size: 12px; margin: 0;">
-                    This is an automated email from Modern360 Assessment Platform.
+                    This is an automated email from Modern360 Assessment Platform.<br>
+                    Your responses are confidential and will be used for professional development purposes only.
                 </p>
             </div>
         </div>
@@ -1160,7 +1158,7 @@ def send_self_assessment_invitation(email, assessment, token):
         print(f"Error sending self-assessment email: {e}")
         raise
 
-def send_assessor_invitation(email, assessment, assessee_name, token):
+def send_assessor_invitation(email, assessment, assessee_name, token, assessor_relationship=None):
     """Send assessor invitation email"""
     try:
         msg = Message(
@@ -1169,8 +1167,10 @@ def send_assessor_invitation(email, assessment, assessee_name, token):
         )
         
         # Create the invitation URL (pointing to main app)
-        main_app_url = os.environ.get('MAIN_APP_URL', 'http://localhost:5000')
+        main_app_url = os.environ.get('MAIN_APP_URL', 'http://65.21.185.169:5000')
         invitation_url = f"{main_app_url}/respond/{token}"
+        
+        relationship_text = f"as their {assessor_relationship}" if assessor_relationship else "as an assessor"
         
         msg.html = f"""
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa;">
@@ -1183,7 +1183,7 @@ def send_assessor_invitation(email, assessment, assessee_name, token):
                 <h2 style="color: #333; margin-bottom: 20px; font-size: 24px; font-weight: 400;">Assessment Invitation</h2>
                 
                 <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-                    You have been invited to assess <strong>{assessee_name}</strong> in the following assessment:
+                    You have been invited to assess <strong>{assessee_name}</strong> {relationship_text} in the following assessment:
                 </p>
                 
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1976d2;">
@@ -1192,7 +1192,7 @@ def send_assessor_invitation(email, assessment, assessee_name, token):
                 </div>
                 
                 <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-                    {assessment.description or 'Please complete this assessment to evaluate the performance of the selected individual.'}
+                    {assessment.description or 'Please complete this assessment to provide valuable feedback on the selected individual\'s performance.'}
                 </p>
                 
                 <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
@@ -1205,7 +1205,10 @@ def send_assessor_invitation(email, assessment, assessee_name, token):
                 
                 <div style="margin-top: 30px; padding: 15px; background-color: #fff3e0; border-radius: 6px; border-left: 4px solid #ff9800;">
                     <p style="color: #e65100; font-size: 14px; margin: 0;">
-                        <strong>Note:</strong> You will be evaluating <strong>{assessee_name}</strong>'s performance in this assessment.
+                        <strong>Assessment Details:</strong><br>
+                        <strong>Assessing:</strong> {assessee_name}<br>
+                        <strong>Your Role:</strong> {assessor_relationship or 'Assessor'}<br>
+                        <strong>Time Required:</strong> Approximately 10-15 minutes
                     </p>
                 </div>
                 
@@ -1219,7 +1222,8 @@ def send_assessor_invitation(email, assessment, assessee_name, token):
             
             <div style="padding: 20px 30px; background-color: #f8f9fa; text-align: center; border-top: 1px solid #dee2e6;">
                 <p style="color: #6c757d; font-size: 12px; margin: 0;">
-                    This is an automated email from Modern360 Assessment Platform.
+                    This is an automated email from Modern360 Assessment Platform.<br>
+                    Your feedback is valuable and will help in professional development.
                 </p>
             </div>
         </div>
@@ -1239,7 +1243,7 @@ def send_invitation_email(email, assessment, token, is_reminder=False):
         )
         
         # Create the invitation URL (pointing to main app)
-        main_app_url = os.environ.get('MAIN_APP_URL', 'http://localhost:5000')
+        main_app_url = os.environ.get('MAIN_APP_URL', 'http://65.21.185.169:5000')
         invitation_url = f"{main_app_url}/respond/{token}"
         
         msg.html = f"""

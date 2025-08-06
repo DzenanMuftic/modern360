@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 import random
 import string
+import json
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -46,12 +47,24 @@ migrate = Migrate(app, db)
 mail = Mail(app)
 
 # Database Models
+class Company(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    users = db.relationship('User', backref='company_ref', lazy=True)
+    assessments = db.relationship('Assessment', backref='company_ref', lazy=True)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    company = db.Column(db.String(150), nullable=True)  # Employer/Company field
-    role = db.Column(db.String(20), default='user')  # admin, manager, user
+    company = db.Column(db.String(150), nullable=True)  # Legacy field
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)  # New company reference
+    role = db.Column(db.String(20), default='user')  # admin, manager, user, assessee, assessor
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     last_login = db.Column(db.DateTime)
@@ -77,6 +90,7 @@ class Assessment(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     deadline = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
@@ -107,12 +121,34 @@ class Invitation(db.Model):
     responded_at = db.Column(db.DateTime)
     is_completed = db.Column(db.Boolean, default=False)
 
+class AssessmentParticipant(db.Model):
+    """Link between Assessment, Assessee, and Assessors"""
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.id'), nullable=False)
+    assessee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assessor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Null for self-assessment
+    assessor_relationship = db.Column(db.String(50), nullable=True)  # Manager, Peer, Direct Report
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Status tracking
+    self_assessment_completed = db.Column(db.Boolean, default=False)
+    assessor_assessment_completed = db.Column(db.Boolean, default=False)
+    self_assessment_date = db.Column(db.DateTime)
+    assessor_assessment_date = db.Column(db.DateTime)
+    
+    # Relationships
+    assessee = db.relationship('User', foreign_keys=[assessee_id], backref='assessee_participations')
+    assessor = db.relationship('User', foreign_keys=[assessor_id], backref='assessor_participations')
+    assessment = db.relationship('Assessment', backref='participants')
+
 class AssessmentResponse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     invitation_id = db.Column(db.Integer, db.ForeignKey('invitation.id'))
+    participant_id = db.Column(db.Integer, db.ForeignKey('assessment_participant.id'), nullable=True)
     responses = db.Column(db.Text)  # JSON string of responses
+    response_type = db.Column(db.String(20), default='assessor')  # 'self' or 'assessor'
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Routes
@@ -378,29 +414,88 @@ def respond_to_assessment(token):
     if invitation.is_completed:
         return render_template('already_completed.html')
     
-    return render_template('respond_assessment.html', assessment=assessment, invitation=invitation)
+    # Get questions for this assessment
+    questions = Question.query.filter_by(assessment_id=assessment.id).order_by(Question.question_group, Question.order, Question.id).all()
+    
+    # Get participant information
+    participant = None
+    assessee_name = "Unknown"
+    assessor_relationship = None
+    
+    # Try to find participant by invitation email
+    participants = AssessmentParticipant.query.filter_by(assessment_id=assessment.id).all()
+    for p in participants:
+        if p.assessor and p.assessor.email == invitation.email:
+            participant = p
+            assessee_name = p.assessee.name
+            assessor_relationship = p.assessor_relationship
+            break
+        elif p.assessee and p.assessee.email == invitation.email and not p.assessor_id:
+            # Self-assessment
+            participant = p
+            assessee_name = p.assessee.name
+            assessor_relationship = "Self Assessment"
+            break
+    
+    return render_template('assessment_questionnaire.html', 
+                         assessment=assessment, 
+                         invitation=invitation,
+                         questions=questions,
+                         participant=participant,
+                         assessee_name=assessee_name,
+                         assessor_relationship=assessor_relationship)
 
-@app.route('/submit_response/<token>', methods=['POST'])
-def submit_response(token):
+@app.route('/submit_assessment/<token>', methods=['POST'])
+def submit_assessment(token):
     invitation = Invitation.query.filter_by(token=token).first_or_404()
     
     if invitation.is_completed:
-        return jsonify({'error': 'Assessment already completed'}), 400
+        return jsonify({'success': False, 'message': 'Assessment already completed'}), 400
     
-    # Save response
-    response = AssessmentResponse(
-        assessment_id=invitation.assessment_id,
-        invitation_id=invitation.id,
-        responses=request.get_json()
-    )
-    
-    invitation.is_completed = True
-    invitation.responded_at = datetime.utcnow()
-    
-    db.session.add(response)
-    db.session.commit()
-    
-    return jsonify({'success': True})
+    try:
+        data = request.get_json()
+        responses = data.get('responses', {})
+        participant_id = data.get('participant_id')
+        
+        # Determine response type
+        response_type = 'assessor'
+        if participant_id:
+            participant = AssessmentParticipant.query.get(participant_id)
+            if participant and not participant.assessor_id:
+                response_type = 'self'
+        
+        # Save response
+        response = AssessmentResponse(
+            assessment_id=invitation.assessment_id,
+            invitation_id=invitation.id,
+            participant_id=participant_id,
+            responses=json.dumps(responses),
+            response_type=response_type
+        )
+        
+        # Mark invitation as completed
+        invitation.is_completed = True
+        invitation.responded_at = datetime.utcnow()
+        
+        # Update participant status
+        if participant_id:
+            participant = AssessmentParticipant.query.get(participant_id)
+            if participant:
+                if response_type == 'self':
+                    participant.self_assessment_completed = True
+                    participant.self_assessment_date = datetime.utcnow()
+                else:
+                    participant.assessor_assessment_completed = True
+                    participant.assessor_assessment_date = datetime.utcnow()
+        
+        db.session.add(response)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Assessment submitted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error submitting assessment: {str(e)}'}), 500
 
 @app.route('/assessment/<int:id>/self-assess')
 def self_assess(id):
@@ -580,6 +675,63 @@ def send_invitation_email(email, assessment_title, token):
         mail.send(msg)
     except Exception as e:
         print(f"Error sending email: {e}")
+
+@app.route('/metrics')
+def metrics():
+    """Basic metrics endpoint for monitoring"""
+    try:
+        # Basic application metrics
+        metrics_data = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database_status': 'connected',
+            'version': '1.0.0'
+        }
+        
+        # Try to check database connection
+        try:
+            db.session.execute('SELECT 1')
+            metrics_data['database_status'] = 'connected'
+        except Exception:
+            metrics_data['database_status'] = 'disconnected'
+        
+        # Return metrics in plain text format (Prometheus style)
+        response_text = f"""# HELP app_status Application status
+# TYPE app_status gauge
+app_status{{status="{metrics_data['status']}"}} 1
+
+# HELP database_status Database connection status
+# TYPE database_status gauge
+database_status{{status="{metrics_data['database_status']}"}} 1
+
+# HELP app_info Application information
+# TYPE app_info gauge
+app_info{{version="{metrics_data['version']}"}} 1
+"""
+        
+        return response_text, 200, {'Content-Type': 'text/plain'}
+    
+    except Exception as e:
+        return f"# Error generating metrics: {str(e)}", 500, {'Content-Type': 'text/plain'}
+
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint"""
+    try:
+        # Check database connection
+        db.session.execute('SELECT 1')
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'disconnected',
+            'error': str(e)
+        }), 503
 
 @app.before_request
 def create_tables():

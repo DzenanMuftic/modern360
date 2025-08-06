@@ -1,0 +1,850 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assessment.title }} - Assessment - Modern360{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Mobile-first minimalistic styles */
+    .assessment-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .assessment-header {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 2rem 1.5rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .assessment-header h1 {
+        color: #1f2937;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .assessment-header p {
+        color: #6b7280;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .assessment-info {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .assessment-info .row > div {
+        padding: 0.5rem;
+        text-align: center;
+    }
+
+    .assessment-info .material-icons {
+        color: #6366f1;
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .assessment-info .small {
+        color: #6b7280;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+
+    .assessment-info .fw-bold {
+        color: #1f2937;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    /* Progress bar */
+    .progress-container {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        position: sticky;
+        top: 1rem;
+        z-index: 10;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .progress-text {
+        font-weight: 500;
+        color: #1f2937;
+        font-size: 0.875rem;
+    }
+
+    .progress-percentage {
+        background: #6366f1;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        background: #e5e7eb;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        background: #6366f1;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        height: 100%;
+    }
+
+    /* Question cards */
+    .question-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        transition: border-color 0.2s ease;
+    }
+
+    .question-card.completed {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+
+    .question-header {
+        padding: 1rem;
+        background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .question-number {
+        background: #6366f1;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        font-size: 0.75rem;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .question-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #1f2937;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .question-body {
+        padding: 1rem;
+    }
+
+    /* Rating scale */
+    .rating-scale {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .rating-option {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 0.75rem 0.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .rating-option:hover {
+        background: #f3f4f6;
+        border-color: #6366f1;
+    }
+
+    .rating-option input[type="radio"] {
+        display: none;
+    }
+
+    .rating-option:has(input:checked) {
+        background: #6366f1;
+        border-color: #6366f1;
+        color: white;
+    }
+
+    .rating-value {
+        font-size: 1rem;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .rating-label {
+        font-size: 0.625rem;
+        font-weight: 500;
+        opacity: 0.8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Form controls */
+    .form-control {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        transition: border-color 0.2s ease;
+        resize: vertical;
+        min-height: 100px;
+        background: #ffffff;
+    }
+
+    .form-control:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        outline: none;
+    }
+
+    .form-text {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    /* Submit section */
+    .submit-section {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+
+    .submit-btn {
+        background: #6366f1;
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 160px;
+        justify-content: center;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+        background: #5855eb;
+    }
+
+    .submit-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    /* Group headers */
+    .mb-4 h3 {
+        color: #1f2937;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .mb-4 .material-icons {
+        color: #6366f1;
+        font-size: 1rem;
+    }
+
+    .mb-4 hr {
+        border-color: #e5e7eb;
+        margin: 0.5rem 0 1rem 0;
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 640px) {
+        .assessment-container {
+            padding: 0.75rem;
+        }
+
+        .assessment-header {
+            padding: 1.5rem 1rem;
+        }
+
+        .assessment-header h1 {
+            font-size: 1.25rem;
+        }
+
+        .assessment-info .row > div {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .assessment-info .row > div:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .progress-container {
+            position: static;
+            margin-bottom: 1rem;
+        }
+
+        .question-header,
+        .question-body {
+            padding: 0.75rem;
+        }
+
+        .rating-scale {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.375rem;
+        }
+
+        .rating-option {
+            padding: 0.5rem 0.25rem;
+        }
+
+        .rating-value {
+            font-size: 0.875rem;
+        }
+
+        .rating-label {
+            font-size: 0.5rem;
+        }
+
+        .submit-section {
+            padding: 1rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            max-width: 280px;
+        }
+    }
+
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+        .assessment-header,
+        .progress-container,
+        .question-card,
+        .submit-section {
+            background: #1f2937;
+            border-color: #374151;
+        }
+
+        .assessment-header h1,
+        .progress-text,
+        .question-text {
+            color: #f9fafb;
+        }
+
+        .assessment-header p,
+        .assessment-info .small,
+        .form-text {
+            color: #9ca3af;
+        }
+
+        .assessment-info {
+            background: #374151;
+        }
+
+        .assessment-info .fw-bold {
+            color: #f9fafb;
+        }
+
+        .question-header {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        .rating-option {
+            background: #374151;
+            border-color: #4b5563;
+            color: #f9fafb;
+        }
+
+        .rating-option:hover {
+            background: #4b5563;
+        }
+
+        .form-control {
+            background: #374151;
+            border-color: #4b5563;
+            color: #f9fafb;
+        }
+
+        .form-control:focus {
+            border-color: #6366f1;
+        }
+
+        .progress {
+            background: #374151;
+        }
+
+        .mb-4 h3 {
+            color: #f9fafb;
+        }
+
+        .mb-4 hr {
+            border-color: #4b5563;
+        }
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+        border: 2px solid #e5e7eb;
+        border-top: 2px solid #6366f1;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Success modal */
+    .success-container {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .success-icon {
+        font-size: 3rem;
+        color: #10b981;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="assessment-container">
+    <!-- Assessment Header -->
+    <div class="assessment-header">
+        <h1 class="display-5 fw-bold mb-3">{{ assessment.title }}</h1>
+        {% if assessment.description %}
+            <p class="lead mb-3 opacity-90">{{ assessment.description }}</p>
+        {% endif %}
+        
+        <div class="assessment-info">
+            <div class="row text-center g-0">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <span class="material-icons mb-2" style="font-size: 1.75rem;">person</span>
+                    <div class="small opacity-80 text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Assessing</div>
+                    <div class="fw-bold fs-6">{{ assessee_name }}</div>
+                </div>
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <span class="material-icons mb-2" style="font-size: 1.75rem;">business</span>
+                    <div class="small opacity-80 text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Company</div>
+                    <div class="fw-bold fs-6">{{ assessment.company_ref.name if assessment.company_ref else 'N/A' }}</div>
+                </div>
+                <div class="col-md-4">
+                    <span class="material-icons mb-2" style="font-size: 1.75rem;">badge</span>
+                    <div class="small opacity-80 text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Your Role</div>
+                    <div class="fw-bold fs-6">{{ assessor_relationship or 'Assessor' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Tracking -->
+    <div class="progress-container">
+        <div class="progress-header d-flex justify-content-between align-items-center">
+            <span class="progress-text">Assessment Progress</span>
+            <span class="progress-percentage" id="progressPercentage">0%</span>
+        </div>
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar"></div>
+        </div>
+        <div class="mt-2 small text-muted">
+            <span id="completedQuestions">0</span> of <span id="totalQuestions">{{ questions|length }}</span> questions completed
+        </div>
+    </div>
+
+    <!-- Assessment Form -->
+    <form id="assessmentForm">
+        {% set current_group = '' %}
+        {% for question in questions %}
+            {% if question.question_group != current_group %}
+                {% set current_group = question.question_group %}
+                <!-- Group Header -->
+                <div class="mb-4">
+                    <h3 class="h5 text-primary fw-bold d-flex align-items-center">
+                        <span class="material-icons me-2">folder</span>
+                        {{ question.question_group or 'General Questions' }}
+                    </h3>
+                    <hr class="text-primary">
+                </div>
+            {% endif %}
+
+            <!-- Question Card -->
+            <div class="question-card" data-question-id="{{ question.id }}">
+                <div class="question-header">
+                    <div class="d-flex align-items-start">
+                        <span class="question-number">{{ loop.index }}</span>
+                        <div class="flex-grow-1">
+                            <p class="question-text">{{ question.question_text }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-body">
+                    {% if question.question_type == 'rating' %}
+                        <!-- Rating Scale -->
+                        <div class="rating-scale">
+                            {% for value in range(1, 6) %}
+                                <label class="rating-option">
+                                    <input type="radio" name="question_{{ question.id }}" value="{{ value }}" required>
+                                    <div class="rating-content">
+                                        <span class="rating-value">{{ value }}</span>
+                                        <span class="rating-label">
+                                            {% if value == 1 %}Poor
+                                            {% elif value == 2 %}Below Average
+                                            {% elif value == 3 %}Average
+                                            {% elif value == 4 %}Good
+                                            {% elif value == 5 %}Excellent
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% elif question.question_type == 'text' %}
+                        <!-- Text Response -->
+                        <textarea 
+                            class="form-control" 
+                            name="question_{{ question.id }}" 
+                            placeholder="Please provide your detailed response..."
+                            required
+                            minlength="10"
+                        ></textarea>
+                        <div class="form-text">Minimum 10 characters required</div>
+                    {% elif question.question_type == 'multiple_choice' and question.options %}
+                        <!-- Multiple Choice -->
+                        {% set options = question.options | fromjson %}
+                        <div class="rating-scale">
+                            {% for option in options %}
+                                <label class="rating-option">
+                                    <input type="radio" name="question_{{ question.id }}" value="{{ option }}" required>
+                                    <div class="rating-content">
+                                        <span class="rating-label">{{ option }}</span>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Submit Section -->
+        <div class="submit-section">
+            <h4 class="mb-3 fw-bold">Ready to Submit Your Assessment?</h4>
+            <p class="text-muted mb-4 opacity-80">Please review your responses carefully before submitting. Once submitted, you cannot make changes to your responses.</p>
+            
+            <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                <span class="material-icons">send</span>
+                Submit Assessment
+            </button>
+            
+            <div class="mt-4 small text-muted opacity-75">
+                <span class="material-icons me-1" style="font-size: 16px; vertical-align: middle;">lock</span>
+                Your responses are confidential and will be used for professional development purposes only.
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body success-container">
+                <span class="material-icons success-icon">check_circle</span>
+                <h3 class="text-success mb-3">Assessment Submitted Successfully!</h3>
+                <p class="text-muted mb-4">Thank you for providing valuable feedback. Your responses have been recorded.</p>
+                <button type="button" class="btn btn-primary" onclick="window.close()">Close Window</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('assessmentForm');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    const completedQuestions = document.getElementById('completedQuestions');
+    const totalQuestions = document.getElementById('totalQuestions');
+    const submitBtn = document.getElementById('submitBtn');
+    const questionCards = document.querySelectorAll('.question-card');
+    
+    let autoSaveTimer;
+    const totalQuestionsCount = parseInt('{{ questions|length }}') || 0;
+
+    // Update progress tracking
+    function updateProgress() {
+        let completed = 0;
+        
+        questionCards.forEach(card => {
+            const questionId = card.dataset.questionId;
+            const inputs = card.querySelectorAll('input[type="radio"]:checked, textarea[required]');
+            
+            let isCompleted = false;
+            
+            // Check radio buttons
+            const radioInputs = card.querySelectorAll('input[type="radio"]');
+            if (radioInputs.length > 0) {
+                isCompleted = Array.from(radioInputs).some(input => input.checked);
+            }
+            
+            // Check textareas
+            const textareas = card.querySelectorAll('textarea[required]');
+            if (textareas.length > 0) {
+                isCompleted = Array.from(textareas).every(textarea => 
+                    textarea.value.trim().length >= 10
+                );
+            }
+            
+            if (isCompleted) {
+                completed++;
+                card.classList.add('completed');
+            } else {
+                card.classList.remove('completed');
+            }
+        });
+        
+        const percentage = Math.round((completed / totalQuestionsCount) * 100);
+        
+        progressBar.style.width = percentage + '%';
+        progressPercentage.textContent = percentage + '%';
+        completedQuestions.textContent = completed;
+        
+        // Enable submit button when all questions are completed
+        submitBtn.disabled = percentage < 100;
+        
+        if (percentage === 100) {
+            progressBar.style.background = '#10b981';
+            submitBtn.classList.add('pulse');
+        } else {
+            progressBar.style.background = '#6366f1';
+            submitBtn.classList.remove('pulse');
+        }
+        
+        // Auto-save progress
+        autoSave();
+    }
+
+    // Auto-save functionality
+    function autoSave() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+            const formData = new FormData(form);
+            const responses = {};
+            
+            for (let [key, value] of formData.entries()) {
+                responses[key] = value;
+            }
+            
+            // Save to localStorage as backup
+            localStorage.setItem('assessment_{{ invitation.token }}', JSON.stringify({
+                responses: responses,
+                timestamp: new Date().toISOString()
+            }));
+            
+            console.log('Auto-saved responses');
+        }, 2000);
+    }
+
+    // Load saved responses
+    function loadSavedResponses() {
+        const saved = localStorage.getItem('assessment_{{ invitation.token }}');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                const responses = data.responses;
+                
+                for (let [key, value] of Object.entries(responses)) {
+                    const input = form.querySelector(`[name="${key}"]`);
+                    if (input) {
+                        if (input.type === 'radio') {
+                            const radioInput = form.querySelector(`[name="${key}"][value="${value}"]`);
+                            if (radioInput) radioInput.checked = true;
+                        } else if (input.type === 'textarea' || input.tagName === 'TEXTAREA') {
+                            input.value = value;
+                        }
+                    }
+                }
+                
+                updateProgress();
+            } catch (e) {
+                console.error('Error loading saved responses:', e);
+            }
+        }
+    }
+
+    // Add event listeners
+    form.addEventListener('change', updateProgress);
+    form.addEventListener('input', updateProgress);
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (submitBtn.disabled) return;
+        
+        // Show loading state
+        submitBtn.innerHTML = '<div class="loading-spinner"></div>Submitting...';
+        submitBtn.disabled = true;
+        
+        // Collect responses
+        const formData = new FormData(form);
+        const responses = {};
+        
+        for (let [key, value] of formData.entries()) {
+            responses[key] = value;
+        }
+        
+        // Prepare submission data with safe template variable handling
+        const assessmentId = parseInt('{{ assessment.id }}') || null;
+        const participantId = parseInt('{% if participant %}{{ participant.id }}{% else %}0{% endif %}') || null;
+        
+        const submissionData = {
+            responses: responses,
+            assessment_id: assessmentId,
+            participant_id: participantId
+        };
+        
+        // Submit to server
+        fetch('/submit_assessment/{{ invitation.token }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(submissionData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Clear auto-saved data
+                localStorage.removeItem('assessment_{{ invitation.token }}');
+                
+                // Show success modal
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                throw new Error(data.message || 'Submission failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error submitting assessment:', error);
+            
+            // Show user-friendly error message
+            let errorMessage = 'Error submitting assessment. Please try again.';
+            if (error.message.includes('HTTP')) {
+                errorMessage = 'Server error occurred. Please check your connection and try again.';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network error. Please check your internet connection and try again.';
+            } else if (error.message) {
+                errorMessage = `Error: ${error.message}`;
+            }
+            
+            alert(errorMessage);
+            
+            // Restore button state
+            submitBtn.innerHTML = '<span class="material-icons">send</span>Submit Assessment';
+            submitBtn.disabled = false;
+        });
+    });
+
+    // Smooth scrolling to incomplete questions
+    function scrollToFirstIncomplete() {
+        const firstIncomplete = document.querySelector('.question-card:not(.completed)');
+        if (firstIncomplete) {
+            firstIncomplete.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }
+    }
+
+    // Add pulse animation for submit button
+    const style = document.createElement('style');
+    style.textContent = `
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+        
+        @keyframes pulse-animation {
+            0% { 
+                background: #10b981;
+                transform: scale(1);
+            }
+            50% { 
+                background: #059669;
+                transform: scale(1.02);
+            }
+            100% { 
+                background: #10b981;
+                transform: scale(1);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Initialize
+    loadSavedResponses();
+    updateProgress();
+    
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.type === 'radio') {
+            e.target.checked = true;
+            updateProgress();
+        }
+    });
+});
+</script>
+{% endblock %}
