@@ -172,6 +172,9 @@
                     <a class="nav-link {{ 'active' if request.endpoint == 'admin_notifications' }}" href="{{ url_for('admin_notifications') }}">
                         <i class="fas fa-bell me-2"></i>Notifications
                     </a>
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_all_data' }}" href="{{ url_for('admin_all_data') }}">
+                        <i class="fas fa-database me-2"></i>All Data
+                    </a>
                 </nav>
             </div>
             {% endif %}

@@ -74,8 +74,27 @@
         padding: 1rem;
         margin-bottom: 1.5rem;
         position: sticky;
+        position: -webkit-sticky; /* Safari support */
         top: 1rem;
-        z-index: 10;
+        z-index: 100;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Fallback for browsers that don't support sticky */
+    @supports not (position: sticky) {
+        .progress-container {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 2rem);
+            max-width: 768px;
+        }
+        
+        /* Add top margin to content when using fixed positioning */
+        .assessment-container {
+            padding-top: 8rem;
+        }
     }
 
     .progress-header {
@@ -314,8 +333,11 @@
         }
 
         .progress-container {
-            position: static;
+            position: sticky;
+            position: -webkit-sticky; /* Safari support */
+            top: 0.5rem;
             margin-bottom: 1rem;
+            z-index: 100;
         }
 
         .question-header,
@@ -358,6 +380,10 @@
         .submit-section {
             background: #1f2937;
             border-color: #374151;
+        }
+
+        .progress-container {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .assessment-header h1,

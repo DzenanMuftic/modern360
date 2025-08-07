@@ -714,6 +714,15 @@ app_info{{version="{metrics_data['version']}"}} 1
     except Exception as e:
         return f"# Error generating metrics: {str(e)}", 500, {'Content-Type': 'text/plain'}
 
+@app.route('/favicon.ico')
+def favicon():
+    """Handle favicon requests to prevent 404 errors"""
+    # Return a simple response or redirect to a static favicon if you have one
+    from flask import make_response
+    response = make_response('')
+    response.status_code = 204  # No Content
+    return response
+
 @app.route('/health')
 def health_check():
     """Simple health check endpoint"""

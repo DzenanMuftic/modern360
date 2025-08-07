@@ -145,9 +145,21 @@
             </div>
             <div class="modal-body">
                 <p>Are you sure you want to delete user <strong id="deleteUserName"></strong>?</p>
-                <p class="text-danger">
-                    <i class="fas fa-warning me-1"></i>
-                    This action cannot be undone and will also delete all assessments and responses created by this user.
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> Users with active assessments cannot be deleted. If deletion fails, please:
+                    <ul class="mb-0 mt-2">
+                        <li>Deactivate any assessments created by this user</li>
+                        <li>Complete or cancel any assessments where this user is a participant</li>
+                        <li>Then try deleting again</li>
+                    </ul>
+                </div>
+                <p class="text-muted small">
+                    Only inactive assessments and related data will be deleted. Active assessments will be preserved.
                 </p>
             </div>
             <div class="modal-footer">

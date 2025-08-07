@@ -79,11 +79,25 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge bg-info">
-                                {{ assessment.responses|length }} / {{ assessment.invitations|length }}
+                            {% set total_participants = assessment.invitations|length %}
+                            {% set completed_responses = assessment.responses|length %}
+                            {% set all_completed = total_participants > 0 and completed_responses == total_participants %}
+                            
+                            <span class="badge bg-{{ 'success' if all_completed else 'info' }}">
+                                {{ completed_responses }} / {{ total_participants }}
+                                {% if all_completed %}
+                                    <i class="fas fa-check-circle ms-1"></i>
+                                {% endif %}
                             </span>
+                            {% if all_completed %}
+                                <br><small class="text-success"><i class="fas fa-check me-1"></i>Complete</small>
+                            {% endif %}
                         </td>
                         <td>
+                            {% set total_participants = assessment.invitations|length %}
+                            {% set completed_responses = assessment.responses|length %}
+                            {% set all_completed = total_participants > 0 and completed_responses == total_participants %}
+                            
                             <div class="btn-group btn-group-sm">
                                 <button type="button" class="btn btn-outline-info" title="View Details" onclick="viewAssessment({{ assessment.id }})">
                                     <i class="fas fa-eye"></i>
@@ -92,6 +106,32 @@
                                    class="btn btn-outline-warning" title="Edit Assessment">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                {% if all_completed %}
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-success dropdown-toggle" 
+                                                data-bs-toggle="dropdown" aria-expanded="false" title="Export Options">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('admin_export_assessment_excel', assessment_id=assessment.id) }}">
+                                                    <i class="fas fa-file-excel text-success me-2"></i>Export to Excel
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('admin_export_assessment_detailed', assessment_id=assessment.id) }}">
+                                                    <i class="fas fa-file-alt text-primary me-2"></i>Export Detailed Report
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('admin_assessment_reports', assessment_id=assessment.id) }}">
+                                                    <i class="fas fa-chart-bar text-info me-2"></i>View Analytics
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                {% endif %}
                                 <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteAssessment({{ assessment.id }}, '{{ assessment.title }}')" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>

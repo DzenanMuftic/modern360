@@ -6,7 +6,7 @@ Separate admin application running on a different port
 Admin credentials: admin / admin123
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response
 from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
@@ -18,6 +18,8 @@ import random
 import string
 from dotenv import load_dotenv
 import json
+import io
+import csv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -376,6 +378,10 @@ def admin_edit_user(user_id):
             company = Company.query.get(company_id)
             user.company_id = company_id
             user.company = company.name if company else None
+        else:
+            # No company selected - clear company references
+            user.company_id = None
+            user.company = None
         
         db.session.commit()
         flash(f'User {user.name} updated successfully!', 'success')
@@ -389,16 +395,70 @@ def admin_edit_user(user_id):
 def admin_delete_user(user_id):
     user = User.query.get_or_404(user_id)
     
+    # Check if user has active assessments as creator
+    active_created_assessments = Assessment.query.filter_by(creator_id=user_id, is_active=True).count()
+    
+    # Check if user is participating in active assessments as assessee
+    active_assessee_participations = db.session.query(AssessmentParticipant).join(Assessment).filter(
+        AssessmentParticipant.assessee_id == user_id,
+        Assessment.is_active == True
+    ).count()
+    
+    # Check if user is participating in active assessments as assessor
+    active_assessor_participations = db.session.query(AssessmentParticipant).join(Assessment).filter(
+        AssessmentParticipant.assessor_id == user_id,
+        Assessment.is_active == True
+    ).count()
+    
+    # Check if user has pending invitations for active assessments
+    active_invitations = db.session.query(Invitation).join(Assessment).filter(
+        Invitation.email == user.email,
+        Invitation.is_completed == False,
+        Assessment.is_active == True
+    ).count()
+    
+    # If user has any active assessment involvement, prevent deletion
+    if active_created_assessments > 0 or active_assessee_participations > 0 or active_assessor_participations > 0 or active_invitations > 0:
+        error_details = []
+        if active_created_assessments > 0:
+            error_details.append(f"{active_created_assessments} active assessment(s) as creator")
+        if active_assessee_participations > 0:
+            error_details.append(f"{active_assessee_participations} active assessment(s) as assessee")
+        if active_assessor_participations > 0:
+            error_details.append(f"{active_assessor_participations} active assessment(s) as assessor")
+        if active_invitations > 0:
+            error_details.append(f"{active_invitations} pending invitation(s)")
+        
+        flash(f'Cannot delete user {user.name}! User has {", ".join(error_details)}. Please deactivate or complete these assessments first.', 'error')
+        return redirect(url_for('admin_users'))
+    
+    # If no active assessments, proceed with deletion
     # Delete related records first
     AssessmentResponse.query.filter_by(user_id=user_id).delete()
     Invitation.query.filter_by(sender_id=user_id).delete()
     
-    # Delete user's assessments and their related data
+    # Delete user's inactive assessments and their related data
     for assessment in user.created_assessments:
-        Question.query.filter_by(assessment_id=assessment.id).delete()
-        Invitation.query.filter_by(assessment_id=assessment.id).delete()
-        AssessmentResponse.query.filter_by(assessment_id=assessment.id).delete()
-        db.session.delete(assessment)
+        if not assessment.is_active:  # Only delete inactive assessments
+            Question.query.filter_by(assessment_id=assessment.id).delete()
+            Invitation.query.filter_by(assessment_id=assessment.id).delete()
+            AssessmentResponse.query.filter_by(assessment_id=assessment.id).delete()
+            AssessmentParticipant.query.filter_by(assessment_id=assessment.id).delete()
+            db.session.delete(assessment)
+    
+    # Delete user's participation records in inactive assessments only
+    # First get the participation records, then delete them individually
+    participation_records = db.session.query(AssessmentParticipant).join(Assessment).filter(
+        db.or_(
+            AssessmentParticipant.assessee_id == user_id,
+            AssessmentParticipant.assessor_id == user_id
+        ),
+        Assessment.is_active == False
+    ).all()
+    
+    # Delete each participation record individually
+    for record in participation_records:
+        db.session.delete(record)
     
     db.session.delete(user)
     db.session.commit()
@@ -950,6 +1010,367 @@ def admin_delete_assessment(assessment_id):
         flash(f'Error deleting assessment: {str(e)}', 'error')
     
     return redirect(url_for('admin_assessments'))
+
+# Export Assessment to Excel
+@admin_app.route('/assessments/<int:assessment_id>/export/excel')
+@admin_required
+def admin_export_assessment_excel(assessment_id):
+    assessment = Assessment.query.get_or_404(assessment_id)
+    
+    # Check if all participants have responded
+    total_participants = len(assessment.invitations)
+    completed_responses = len(assessment.responses)
+    
+    if total_participants == 0 or completed_responses != total_participants:
+        flash('Export is only available when all participants have completed the assessment.', 'warning')
+        return redirect(url_for('admin_assessments'))
+    
+    # Create CSV content
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Assessment ID',
+        'Assessment Title',
+        'Participant Name',
+        'Participant Email',
+        'Participant Role',
+        'Question Group',
+        'Question Text',
+        'Response',
+        'Submitted At'
+    ])
+    
+    # Write data
+    for response in assessment.responses:
+        try:
+            response_data = json.loads(response.responses) if response.responses else {}
+            
+            # Get participant information from the participant relationship
+            participant = AssessmentParticipant.query.get(response.participant_id) if response.participant_id else None
+            
+            if participant:
+                if participant.assessor_id:  # Assessor response
+                    participant_name = participant.assessor.name
+                    participant_email = participant.assessor.email
+                    # Use the assessor relationship (Peer, Manager, Direct Report) as the role
+                    participant_role = participant.assessor_relationship or "Assessor"
+                else:  # Self-assessment response
+                    participant_name = participant.assessee.name
+                    participant_email = participant.assessee.email
+                    participant_role = "Self-Assessment"
+            else:
+                # Fallback to user if participant not found
+                participant_name = response.user.name if response.user else "Anonymous"
+                participant_email = response.user.email if response.user else "N/A"
+                participant_role = response.user.role if response.user else "N/A"
+            
+            for question in assessment.questions:
+                question_key = str(question.id)
+                raw_answer = response_data.get(question_key, "")
+                
+                # Clean up the answer - if it's empty or None, show "No response"
+                if raw_answer and str(raw_answer).strip():
+                    answer = str(raw_answer).strip()
+                else:
+                    answer = "No response"
+                
+                writer.writerow([
+                    assessment.id,
+                    assessment.title,
+                    participant_name,
+                    participant_email,
+                    participant_role,
+                    question.question_group or "General",
+                    question.question_text,
+                    answer,
+                    response.submitted_at.strftime('%Y-%m-%d %H:%M:%S')
+                ])
+        except Exception as e:
+            print(f"Error processing response {response.id}: {e}")
+            continue
+    
+    # Get assessee names for filename
+    assessees = []
+    for response in assessment.responses:
+        participant = AssessmentParticipant.query.get(response.participant_id) if response.participant_id else None
+        if participant and not participant.assessor_id:  # Self-assessment response (assessee)
+            assessee_name = participant.assessee.name.replace(" ", "_")
+            if assessee_name not in assessees:
+                assessees.append(assessee_name)
+    
+    # Create filename with assessment and assessee names
+    assessee_part = "_".join(assessees) if assessees else "NoAssessee"
+    safe_title = assessment.title.replace(" ", "_").replace("/", "_").replace("\\", "_")
+    filename = f"assessment_{assessment_id}_{safe_title}_{assessee_part}_export.csv"
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    
+    return response
+
+# Export Assessment Detailed Report
+@admin_app.route('/assessments/<int:assessment_id>/export/detailed')
+@admin_required
+def admin_export_assessment_detailed(assessment_id):
+    assessment = Assessment.query.get_or_404(assessment_id)
+    
+    # Check if all participants have responded
+    total_participants = len(assessment.invitations)
+    completed_responses = len(assessment.responses)
+    
+    if total_participants == 0 or completed_responses != total_participants:
+        flash('Export is only available when all participants have completed the assessment.', 'warning')
+        return redirect(url_for('admin_assessments'))
+    
+    # Create detailed report content
+    output = io.StringIO()
+    
+    # Write header information
+    output.write(f"ASSESSMENT DETAILED REPORT\n")
+    output.write(f"=" * 50 + "\n\n")
+    output.write(f"Assessment ID: {assessment.id}\n")
+    output.write(f"Title: {assessment.title}\n")
+    output.write(f"Description: {assessment.description or 'No description'}\n")
+    output.write(f"Creator: {assessment.creator.name}\n")
+    output.write(f"Created: {assessment.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n")
+    output.write(f"Type: {'Self-Assessment' if assessment.is_self_assessment else '360 Assessment'}\n")
+    output.write(f"Status: {'Active' if assessment.is_active else 'Inactive'}\n")
+    output.write(f"Total Participants: {total_participants}\n")
+    output.write(f"Completed Responses: {completed_responses}\n")
+    output.write(f"Completion Rate: 100%\n\n")
+    
+    # Group responses by question groups
+    question_groups = {}
+    for question in assessment.questions:
+        group = question.question_group or "General"
+        if group not in question_groups:
+            question_groups[group] = []
+        question_groups[group].append(question)
+    
+    # Write responses by group
+    for group_name, questions in question_groups.items():
+        output.write(f"QUESTION GROUP: {group_name.upper()}\n")
+        output.write(f"-" * 40 + "\n\n")
+        
+        for question in sorted(questions, key=lambda q: q.order):
+            output.write(f"Question {question.order + 1}: {question.question_text}\n")
+            output.write(f"Type: {question.question_type}\n")
+            output.write(f"Responses:\n")
+            
+            for response in assessment.responses:
+                try:
+                    response_data = json.loads(response.responses) if response.responses else {}
+                    
+                    # Get participant information from the participant relationship
+                    participant = AssessmentParticipant.query.get(response.participant_id) if response.participant_id else None
+                    
+                    if participant:
+                        # For assessor responses, show assessor as participant and assessee in role
+                        if participant.assessor_id:  # Assessor response
+                            participant_name = f"{participant.assessor.name} (Assessor for {participant.assessee.name})"
+                        else:  # Self-assessment response
+                            participant_name = f"{participant.assessee.name} (Self-Assessment)"
+                    else:
+                        # Fallback to user if participant not found
+                        participant_name = response.user.name if response.user else "Anonymous"
+                    
+                    answer = response_data.get(str(question.id), "No response")
+                    
+                    output.write(f"  - {participant_name}: {answer}\n")
+                except Exception as e:
+                    print(f"Error processing response: {e}")
+                    continue
+            
+            output.write("\n")
+        
+        output.write("\n")
+    
+    # Get assessee names for filename
+    assessees = []
+    for response in assessment.responses:
+        participant = AssessmentParticipant.query.get(response.participant_id) if response.participant_id else None
+        if participant and not participant.assessor_id:  # Self-assessment response (assessee)
+            assessee_name = participant.assessee.name.replace(" ", "_")
+            if assessee_name not in assessees:
+                assessees.append(assessee_name)
+    
+    # Create filename with assessment and assessee names
+    assessee_part = "_".join(assessees) if assessees else "NoAssessee"
+    safe_title = assessment.title.replace(" ", "_").replace("/", "_").replace("\\", "_")
+    filename = f"assessment_{assessment_id}_{safe_title}_{assessee_part}_detailed_report.txt"
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/plain'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    
+    return response
+
+# Assessment Analytics/Reports Page
+@admin_app.route('/assessments/<int:assessment_id>/reports')
+@admin_required
+def admin_assessment_reports(assessment_id):
+    assessment = Assessment.query.get_or_404(assessment_id)
+    
+    # Calculate analytics
+    total_participants = len(assessment.invitations)
+    completed_responses = len(assessment.responses)
+    completion_rate = (completed_responses / total_participants * 100) if total_participants > 0 else 0
+    
+    # Group analysis by question groups
+    question_groups = {}
+    response_analysis = {}
+    
+    for question in assessment.questions:
+        group = question.question_group or "General"
+        if group not in question_groups:
+            question_groups[group] = []
+            response_analysis[group] = {}
+        question_groups[group].append(question)
+        
+        # Analyze responses for this question
+        responses_for_question = []
+        for response in assessment.responses:
+            try:
+                response_data = json.loads(response.responses) if response.responses else {}
+                answer = response_data.get(str(question.id))
+                if answer:
+                    responses_for_question.append(answer)
+            except:
+                continue
+        
+        response_analysis[group][question.id] = {
+            'question': question,
+            'responses': responses_for_question,
+            'response_count': len(responses_for_question)
+        }
+    
+    return render_template('admin_assessment_reports.html',
+                         assessment=assessment,
+                         total_participants=total_participants,
+                         completed_responses=completed_responses,
+                         completion_rate=completion_rate,
+                         question_groups=question_groups,
+                         response_analysis=response_analysis)
+
+# All Data View - New comprehensive data view
+@admin_app.route('/all-data')
+@admin_required
+def admin_all_data():
+    # Get all assessments with their responses
+    assessments = Assessment.query.order_by(Assessment.created_at.desc()).all()
+    
+    # Collect all data
+    all_data = []
+    
+    for assessment in assessments:
+        for response in assessment.responses:
+            try:
+                response_data = json.loads(response.responses) if response.responses else {}
+                
+                # Get participant information
+                participant = AssessmentParticipant.query.get(response.participant_id) if response.participant_id else None
+                
+                if participant:
+                    if participant.assessor_id:  # Assessor response
+                        participant_name = participant.assessor.name
+                        participant_email = participant.assessor.email
+                        participant_role = participant.assessor_relationship or "Assessor"
+                        assessee_name = participant.assessee.name
+                        response_type = "Assessor Evaluation"
+                    else:  # Self-assessment response
+                        participant_name = participant.assessee.name
+                        participant_email = participant.assessee.email
+                        participant_role = "Self-Assessment"
+                        assessee_name = participant.assessee.name
+                        response_type = "Self-Assessment"
+                else:
+                    # Fallback
+                    participant_name = response.user.name if response.user else "Anonymous"
+                    participant_email = response.user.email if response.user else "N/A"
+                    participant_role = response.user.role if response.user else "N/A"
+                    assessee_name = "Unknown"
+                    response_type = "Unknown"
+                
+                for question in assessment.questions:
+                    # Try multiple possible keys for the question response
+                    question_keys = [
+                        str(question.id),
+                        f"question_{question.id}",
+                        f"q{question.id}"
+                    ]
+                    
+                    raw_answer = ""
+                    for key in question_keys:
+                        if key in response_data:
+                            raw_answer = response_data[key]
+                            break
+                    
+                    if raw_answer and str(raw_answer).strip():
+                        answer = str(raw_answer).strip()
+                    else:
+                        answer = "No response"
+                    
+                    all_data.append({
+                        'assessment_id': assessment.id,
+                        'assessment_title': assessment.title,
+                        'assessment_created': assessment.created_at,
+                        'company_name': assessment.company_ref.name if assessment.company_ref else 'N/A',
+                        'participant_name': participant_name,
+                        'participant_email': participant_email,
+                        'participant_role': participant_role,
+                        'assessee_name': assessee_name,
+                        'response_type': response_type,
+                        'question_group': question.question_group or "General",
+                        'question_text': question.question_text,
+                        'question_type': question.question_type,
+                        'response': answer,
+                        'submitted_at': response.submitted_at
+                    })
+            except Exception as e:
+                print(f"Error processing response {response.id}: {e}")
+                continue
+    
+    # Get summary statistics
+    total_assessments = len(assessments)
+    total_responses = len([data for data in all_data])
+    total_participants = len(set([(data['participant_name'], data['participant_email']) for data in all_data]))
+    total_companies = len(set([data['company_name'] for data in all_data if data['company_name'] != 'N/A']))
+    
+    # Group by assessment for summary
+    assessment_summary = {}
+    for data in all_data:
+        assessment_key = f"{data['assessment_id']}-{data['assessment_title']}"
+        if assessment_key not in assessment_summary:
+            assessment_summary[assessment_key] = {
+                'assessment': {
+                    'id': data['assessment_id'],
+                    'title': data['assessment_title'],
+                    'created': data['assessment_created'],
+                    'company': data['company_name']
+                },
+                'participants': set(),
+                'responses': 0,
+                'question_groups': set()
+            }
+        
+        assessment_summary[assessment_key]['participants'].add((data['participant_name'], data['participant_email']))
+        assessment_summary[assessment_key]['responses'] += 1
+        assessment_summary[assessment_key]['question_groups'].add(data['question_group'])
+    
+    return render_template('admin_all_data.html',
+                         all_data=all_data,
+                         total_assessments=total_assessments,
+                         total_responses=total_responses,
+                         total_participants=total_participants,
+                         total_companies=total_companies,
+                         assessment_summary=assessment_summary)
 
 @admin_app.route('/invitations')
 @admin_required
