@@ -19,6 +19,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Name</th>
+                        <th>Industry</th>
                         <th>Description</th>
                         <th>Users</th>
                         <th>Assessments</th>
@@ -34,7 +35,14 @@
                         <td>
                             <strong>{{ company.name }}</strong>
                         </td>
-                        <td>{{ company.description[:100] + '...' if company.description and company.description|length > 100 else company.description or 'No description' }}</td>
+                        <td>
+                            {% if company.industry %}
+                                <span class="badge bg-primary">{{ company.industry }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ company.description[:80] + '...' if company.description and company.description|length > 80 else company.description or 'No description' }}</td>
                         <td>
                             <span class="badge bg-info">{{ company.users|length }}</span>
                         </td>

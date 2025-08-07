@@ -208,18 +208,7 @@
             <div class="card mt-4" id="details-section" style="display: none;">
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="language" class="form-label">
-                                    <i class="fas fa-language me-1"></i>Language
-                                </label>
-                                <select class="form-select" id="language" name="language">
-                                    <option value="en">English</option>
-                                    <option value="bs">Bosanski</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="deadline" class="form-label">
                                     <i class="fas fa-calendar me-1"></i>Deadline (Optional)
@@ -344,6 +333,29 @@
                     <div class="mb-3">
                         <label for="companyName" class="form-label">Company Name *</label>
                         <input type="text" class="form-control" id="companyName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="companyIndustry" class="form-label">Industry *</label>
+                        <select class="form-select" id="companyIndustry" required>
+                            <option value="">Select Industry</option>
+                            <option value="IT">Information Technology</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Finance">Finance & Banking</option>
+                            <option value="Manufacturing">Manufacturing</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Education">Education</option>
+                            <option value="Consulting">Consulting</option>
+                            <option value="Real Estate">Real Estate</option>
+                            <option value="Construction">Construction</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Media">Media & Entertainment</option>
+                            <option value="Food & Beverage">Food & Beverage</option>
+                            <option value="Telecommunications">Telecommunications</option>
+                            <option value="Government">Government</option>
+                            <option value="Non-Profit">Non-Profit</option>
+                            <option value="Other">Other</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="companyDescription" class="form-label">Description</label>
@@ -636,10 +648,16 @@ function openAddAssessorModal() {
 
 function addCompany() {
     const name = document.getElementById('companyName').value.trim();
+    const industry = document.getElementById('companyIndustry').value;
     const description = document.getElementById('companyDescription').value.trim();
     
     if (!name) {
         alert('Company name is required!');
+        return;
+    }
+    
+    if (!industry) {
+        alert('Industry is required!');
         return;
     }
     
@@ -648,7 +666,11 @@ function addCompany() {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, description })
+        body: JSON.stringify({ 
+            name: name, 
+            industry: industry, 
+            description: description 
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -1027,7 +1049,6 @@ function previewAssessment() {
     const title = document.getElementById('title').value || 'Untitled Assessment';
     const description = document.getElementById('description').value || 'No description';
     const company = document.getElementById('company_id').options[document.getElementById('company_id').selectedIndex]?.text || 'No company selected';
-    const language = document.getElementById('language').value;
     const deadline = document.getElementById('deadline').value;
     const useTemplate = document.getElementById('use_template').checked;
     const sendInvitations = document.getElementById('send_invitations').checked;
@@ -1046,7 +1067,7 @@ function previewAssessment() {
                         <p><strong>Company:</strong> ${company}</p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Language:</strong> ${language === 'en' ? 'English' : 'Bosanski'}</p>
+                        <p><strong>Language:</strong> Bosanski</p>
                         <p><strong>Deadline:</strong> ${deadline ? new Date(deadline).toLocaleString() : 'No deadline set'}</p>
                         <p><strong>Questions:</strong> ${useTemplate ? 'Using predefined template' : 'Custom questions'}</p>
                     </div>
@@ -1102,18 +1123,13 @@ document.getElementById('use_template').addEventListener('change', function() {
     }
 });
 
-document.getElementById('language').addEventListener('change', function() {
-    const language = this.value;
+// Show Bosnian preview by default
+document.addEventListener('DOMContentLoaded', function() {
     const englishPreview = document.getElementById('english-preview');
     const bosnianPreview = document.getElementById('bosnian-preview');
     
-    if (language === 'bs') {
-        englishPreview.style.display = 'none';
-        bosnianPreview.style.display = 'block';
-    } else {
-        englishPreview.style.display = 'block';
-        bosnianPreview.style.display = 'none';
-    }
+    if (englishPreview) englishPreview.style.display = 'none';
+    if (bosnianPreview) bosnianPreview.style.display = 'block';
 });
 
 function addQuestion() {

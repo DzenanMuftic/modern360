@@ -72,6 +72,7 @@ class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), unique=True, nullable=False)
     description = db.Column(db.Text)
+    industry = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
@@ -249,6 +250,7 @@ def admin_create_company():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
+        industry = request.form.get('industry', '').strip()
         
         if not name:
             flash('Company name is required!', 'error')
@@ -261,7 +263,7 @@ def admin_create_company():
             return render_template('admin_create_company.html')
         
         # Create new company
-        company = Company(name=name, description=description)
+        company = Company(name=name, description=description, industry=industry)
         db.session.add(company)
         db.session.commit()
         
@@ -278,6 +280,7 @@ def admin_edit_company(company_id):
     if request.method == 'POST':
         company.name = request.form.get('name', '').strip()
         company.description = request.form.get('description', '').strip()
+        company.industry = request.form.get('industry', '').strip()
         company.is_active = 'is_active' in request.form
         
         db.session.commit()
@@ -510,9 +513,13 @@ def api_create_company():
     data = request.get_json()
     name = data.get('name', '').strip()
     description = data.get('description', '').strip()
+    industry = data.get('industry', '').strip()
     
     if not name:
         return jsonify({'success': False, 'message': 'Company name is required!'})
+    
+    if not industry:
+        return jsonify({'success': False, 'message': 'Industry is required!'})
     
     # Check if company already exists
     existing_company = Company.query.filter_by(name=name).first()
@@ -520,7 +527,7 @@ def api_create_company():
         return jsonify({'success': False, 'message': 'Company with this name already exists!'})
     
     # Create new company
-    company = Company(name=name, description=description)
+    company = Company(name=name, description=description, industry=industry)
     db.session.add(company)
     db.session.commit()
     
@@ -529,7 +536,8 @@ def api_create_company():
         'company': {
             'id': company.id,
             'name': company.name,
-            'description': company.description
+            'description': company.description,
+            'industry': company.industry
         }
     })
 
@@ -606,7 +614,7 @@ def admin_create_assessment():
         company_id = request.form.get('company_id', type=int)
         deadline_str = request.form.get('deadline')
         creator_id = request.form.get('creator_id', type=int)
-        language = request.form.get('language', 'en')
+        language = 'bs'  # Default to Bosnian
         use_template = 'use_template' in request.form
         send_invitations = 'send_invitations' in request.form
         allow_self_registration = 'allow_self_registration' in request.form
@@ -857,10 +865,10 @@ def admin_edit_assessment(assessment_id):
 @admin_required
 def admin_question_templates():
     """View predefined question templates"""
-    bosnian_questions = Question.query.filter_by(assessment_id=0, language='bs').order_by(Question.question_group, Question.order).all()
-    english_questions = Question.query.filter_by(assessment_id=0, language='en').order_by(Question.question_group, Question.order).all()
+    bosnian_questions = Question.query.filter_by(assessment_id=0, language='bs').order_by(Question.order).all()
+    english_questions = Question.query.filter_by(assessment_id=0, language='en').order_by(Question.order).all()
     
-    # Group questions by category
+    # Group questions by category, but maintain order within each group
     bosnian_groups = {}
     for q in bosnian_questions:
         if q.question_group not in bosnian_groups:
@@ -1067,7 +1075,7 @@ def admin_export_assessment_excel(assessment_id):
                 participant_role = response.user.role if response.user else "N/A"
             
             for question in assessment.questions:
-                question_key = str(question.id)
+                question_key = f"question_{question.id}"
                 raw_answer = response_data.get(question_key, "")
                 
                 # Clean up the answer - if it's empty or None, show "No response"
@@ -1076,6 +1084,18 @@ def admin_export_assessment_excel(assessment_id):
                 else:
                     answer = "No response"
                 
+                # Get the Bosnian question text from template if available
+                bosnian_question_text = question.question_text
+                if question.language == 'en':
+                    # Try to find the corresponding Bosnian question from templates
+                    bosnian_template = Question.query.filter_by(
+                        assessment_id=0, 
+                        language='bs', 
+                        order=question.order
+                    ).first()
+                    if bosnian_template:
+                        bosnian_question_text = bosnian_template.question_text
+                
                 writer.writerow([
                     assessment.id,
                     assessment.title,
@@ -1083,7 +1103,7 @@ def admin_export_assessment_excel(assessment_id):
                     participant_email,
                     participant_role,
                     question.question_group or "General",
-                    question.question_text,
+                    bosnian_question_text,
                     answer,
                     response.submitted_at.strftime('%Y-%m-%d %H:%M:%S')
                 ])

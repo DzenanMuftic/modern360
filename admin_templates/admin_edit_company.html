@@ -18,6 +18,30 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label for="industry" class="form-label">Industry</label>
+                        <select class="form-select" id="industry" name="industry">
+                            <option value="">Select Industry</option>
+                            <option value="IT" {% if company.industry == 'IT' %}selected{% endif %}>Information Technology</option>
+                            <option value="Healthcare" {% if company.industry == 'Healthcare' %}selected{% endif %}>Healthcare</option>
+                            <option value="Finance" {% if company.industry == 'Finance' %}selected{% endif %}>Finance & Banking</option>
+                            <option value="Manufacturing" {% if company.industry == 'Manufacturing' %}selected{% endif %}>Manufacturing</option>
+                            <option value="Retail" {% if company.industry == 'Retail' %}selected{% endif %}>Retail</option>
+                            <option value="Education" {% if company.industry == 'Education' %}selected{% endif %}>Education</option>
+                            <option value="Consulting" {% if company.industry == 'Consulting' %}selected{% endif %}>Consulting</option>
+                            <option value="Real Estate" {% if company.industry == 'Real Estate' %}selected{% endif %}>Real Estate</option>
+                            <option value="Construction" {% if company.industry == 'Construction' %}selected{% endif %}>Construction</option>
+                            <option value="Transportation" {% if company.industry == 'Transportation' %}selected{% endif %}>Transportation</option>
+                            <option value="Energy" {% if company.industry == 'Energy' %}selected{% endif %}>Energy</option>
+                            <option value="Media" {% if company.industry == 'Media' %}selected{% endif %}>Media & Entertainment</option>
+                            <option value="Food & Beverage" {% if company.industry == 'Food & Beverage' %}selected{% endif %}>Food & Beverage</option>
+                            <option value="Telecommunications" {% if company.industry == 'Telecommunications' %}selected{% endif %}>Telecommunications</option>
+                            <option value="Government" {% if company.industry == 'Government' %}selected{% endif %}>Government</option>
+                            <option value="Non-Profit" {% if company.industry == 'Non-Profit' %}selected{% endif %}>Non-Profit</option>
+                            <option value="Other" {% if company.industry == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
                         <textarea class="form-control" id="description" name="description" rows="4" 
                                   placeholder="Optional company description">{{ company.description or '' }}</textarea>
