@@ -1037,76 +1037,103 @@ def admin_export_assessment_excel(assessment_id):
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Write header
-    writer.writerow([
-        'Assessment ID',
-        'Assessment Title',
-        'Participant Name',
-        'Participant Email',
-        'Participant Role',
-        'Question Group',
-        'Question Text',
-        'Response',
-        'Submitted At'
-    ])
+    # Get company information
+    company = assessment.company_ref
     
-    # Write data
+    # Get all assessment questions sorted by order
+    questions = sorted(assessment.questions, key=lambda q: q.order)
+    
+    # Create header row with basic info + questions 1-39
+    header = [
+        'Assessment ID',
+        'Company ID', 
+        'Company Name',
+        'Industry',
+        'Participant ID',
+        'Assessee Name',
+        'Participant Name',
+        'Email',
+        'Participant Role',
+    ]
+    
+    # Add question columns (1-39 based on order)
+    for i in range(1, 40):  # Questions 1-39
+        header.append(str(i))
+    
+    writer.writerow(header)
+    
+    # Write data for each response
     for response in assessment.responses:
         try:
             response_data = json.loads(response.responses) if response.responses else {}
             
-            # Get participant information from the participant relationship
+            # Get participant information
             participant = AssessmentParticipant.query.get(response.participant_id) if response.participant_id else None
             
+            # Initialize assessee name (this will be the same for all participants in this assessment)
+            assessee_name = ""
+            
             if participant:
+                # Get the assessee name (this is always available from the participant record)
+                assessee_name = participant.assessee.name if participant.assessee else ""
+                
                 if participant.assessor_id:  # Assessor response
+                    participant_id = participant.assessor_id
                     participant_name = participant.assessor.name
                     participant_email = participant.assessor.email
-                    # Use the assessor relationship (Peer, Manager, Direct Report) as the role
-                    participant_role = participant.assessor_relationship or "Assessor"
+                    # Ensure we always have a meaningful role
+                    if participant.assessor_relationship and participant.assessor_relationship.strip():
+                        participant_role = participant.assessor_relationship.strip()
+                    else:
+                        participant_role = "Assessor"
                 else:  # Self-assessment response
+                    participant_id = participant.assessee_id
                     participant_name = participant.assessee.name
                     participant_email = participant.assessee.email
                     participant_role = "Self-Assessment"
             else:
                 # Fallback to user if participant not found
+                participant_id = response.user_id if response.user else None
                 participant_name = response.user.name if response.user else "Anonymous"
                 participant_email = response.user.email if response.user else "N/A"
-                participant_role = response.user.role if response.user else "N/A"
-            
-            for question in assessment.questions:
-                question_key = f"question_{question.id}"
-                raw_answer = response_data.get(question_key, "")
-                
-                # Clean up the answer - if it's empty or None, show "No response"
-                if raw_answer and str(raw_answer).strip():
-                    answer = str(raw_answer).strip()
+                # Ensure we always have a meaningful role, never null
+                if response.user and response.user.role and response.user.role.strip():
+                    participant_role = response.user.role.strip()
                 else:
-                    answer = "No response"
-                
-                # Get the Bosnian question text from template if available
-                bosnian_question_text = question.question_text
-                if question.language == 'en':
-                    # Try to find the corresponding Bosnian question from templates
-                    bosnian_template = Question.query.filter_by(
-                        assessment_id=0, 
-                        language='bs', 
-                        order=question.order
-                    ).first()
-                    if bosnian_template:
-                        bosnian_question_text = bosnian_template.question_text
-                
-                writer.writerow([
-                    assessment.id,
-                    assessment.title,
-                    participant_name,
-                    participant_email,
-                    participant_role,
-                    question.question_group or "General",
-                    bosnian_question_text,
-                    answer,
-                    response.submitted_at.strftime('%Y-%m-%d %H:%M:%S')
-                ])
+                    participant_role = "User"
+            
+            # Create row with basic participant info
+            row = [
+                assessment.id,
+                company.id if company else "",
+                company.name if company else "",
+                company.industry if company else "",
+                participant_id or "",
+                assessee_name,
+                participant_name,
+                participant_email,
+                participant_role,
+            ]
+            
+            # Add responses for questions 1-39
+            for i in range(1, 40):
+                # Find question with this order (now questions have order 1-39, not 0-38)
+                question = next((q for q in questions if q.order == i), None)
+                if question:
+                    question_key = f"question_{question.id}"
+                    raw_answer = response_data.get(question_key, "")
+                    
+                    # Clean up the answer
+                    if raw_answer and str(raw_answer).strip():
+                        answer = str(raw_answer).strip()
+                    else:
+                        answer = ""
+                    row.append(answer)
+                else:
+                    row.append("")  # No question for this position
+            
+            writer.writerow(row)
+            
         except Exception as e:
             print(f"Error processing response {response.id}: {e}")
             continue
