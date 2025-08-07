@@ -1,14 +1,7 @@
-#!/usr/bin/env python3
-"""
-Modern360 Admin Dashboard
-Separate admin application running on a different port
-
-Admin credentials: admin / admin123
-"""
-
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response
 from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from datetime import datetime, timedelta
 import secrets
 import os
@@ -1560,7 +1553,7 @@ def send_self_assessment_invitation(email, assessment, token, assessee_name=None
         )
         
         # Create the invitation URL (pointing to main app)
-        main_app_url = os.environ.get('MAIN_APP_URL', 'http://65.21.185.169:5000')
+        main_app_url = os.environ.get('MAIN_APP_URL', 'https://asistentica.online')
         invitation_url = f"{main_app_url}/respond/{token}"
         
         display_name = assessee_name or "yourself"
@@ -1635,7 +1628,7 @@ def send_assessor_invitation(email, assessment, assessee_name, token, assessor_r
         )
         
         # Create the invitation URL (pointing to main app)
-        main_app_url = os.environ.get('MAIN_APP_URL', 'http://65.21.185.169:5000')
+        main_app_url = os.environ.get('MAIN_APP_URL', 'https://asistentica.online')
         invitation_url = f"{main_app_url}/respond/{token}"
         
         relationship_text = f"as their {assessor_relationship}" if assessor_relationship else "as an assessor"
@@ -1711,7 +1704,7 @@ def send_invitation_email(email, assessment, token, is_reminder=False):
         )
         
         # Create the invitation URL (pointing to main app)
-        main_app_url = os.environ.get('MAIN_APP_URL', 'http://65.21.185.169:5000')
+        main_app_url = os.environ.get('MAIN_APP_URL', 'https://asistentica.online')
         invitation_url = f"{main_app_url}/respond/{token}"
         
         msg.html = f"""
@@ -1776,11 +1769,36 @@ def send_invitation_email(email, assessment, token, is_reminder=False):
         print(f"Error sending invitation email: {e}")
         raise
 
+@admin_app.route('/favicon.ico')
+def favicon():
+    """Handle favicon requests - serve the actual favicon file"""
+    from flask import send_from_directory, abort
+    import os
+    
+    try:
+        # Try to serve the favicon from the static folder
+        return send_from_directory(
+            os.path.join(admin_app.root_path, 'static'),
+            'favicon.ico',
+            mimetype='image/vnd.microsoft.icon'
+        )
+    except FileNotFoundError:
+        # If favicon doesn't exist, return a 204 No Content response
+        from flask import make_response
+        response = make_response('')
+        response.status_code = 204
+        return response
+
 @admin_app.before_request
 def create_tables():
     if not hasattr(create_tables, '_called'):
         db.create_all()
         create_tables._called = True
+
+# Mount the admin app under /admin using DispatcherMiddleware
+application = DispatcherMiddleware(None, {
+    '/admin': admin_app
+})
 
 if __name__ == '__main__':
     admin_port = int(os.environ.get('ADMIN_PORT', 5001))

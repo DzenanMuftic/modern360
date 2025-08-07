@@ -152,6 +152,36 @@ class AssessmentResponse(db.Model):
     response_type = db.Column(db.String(20), default='assessor')  # 'self' or 'assessor'
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+# Domain redirect configuration
+@app.before_request
+def check_domain_redirect():
+    """Check if we should redirect to a different domain"""
+    # Skip redirect for certain routes and conditions
+    if request.endpoint in ['health_check', 'favicon'] or request.path.startswith('/static/'):
+        return None
+    
+    redirect_domain = os.environ.get('REDIRECT_DOMAIN')
+    enable_redirect = os.environ.get('ENABLE_DOMAIN_REDIRECT', 'false').lower() == 'true'
+    
+    if enable_redirect and redirect_domain:
+        # Get the current request host
+        current_host = request.host
+        target_domain = redirect_domain.replace('https://', '').replace('http://', '')
+        
+        # Check if we're not already on the target domain and not on localhost/admin
+        if (target_domain not in current_host and 
+            '127.0.0.1' not in current_host and 
+            'localhost' not in current_host):
+            
+            # Construct the redirect URL
+            redirect_url = f"{redirect_domain}{request.path}"
+            if request.query_string:
+                redirect_url += f"?{request.query_string.decode()}"
+            
+            return redirect(redirect_url, code=301)  # Permanent redirect
+    
+    return None
+
 # Routes
 @app.route('/')
 def index():
@@ -409,6 +439,20 @@ def assessment_details(id):
 
 @app.route('/respond/<token>')
 def respond_to_assessment(token):
+    # Check if domain redirect is enabled
+    redirect_domain = os.environ.get('REDIRECT_DOMAIN')
+    enable_redirect = os.environ.get('ENABLE_DOMAIN_REDIRECT', 'false').lower() == 'true'
+    
+    if enable_redirect and redirect_domain:
+        # Get the current request host
+        current_host = request.host
+        
+        # Check if we're not already on the target domain
+        if redirect_domain.replace('https://', '').replace('http://', '') not in current_host:
+            # Redirect to the new domain
+            redirect_url = f"{redirect_domain}/respond/{token}"
+            return redirect(redirect_url, code=301)  # Permanent redirect
+    
     invitation = Invitation.query.filter_by(token=token).first_or_404()
     assessment = invitation.assessment
     
@@ -717,12 +761,23 @@ app_info{{version="{metrics_data['version']}"}} 1
 
 @app.route('/favicon.ico')
 def favicon():
-    """Handle favicon requests to prevent 404 errors"""
-    # Return a simple response or redirect to a static favicon if you have one
-    from flask import make_response
-    response = make_response('')
-    response.status_code = 204  # No Content
-    return response
+    """Handle favicon requests - serve the actual favicon file"""
+    from flask import send_from_directory, abort
+    import os
+    
+    try:
+        # Try to serve the favicon from the static folder
+        return send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'favicon.ico',
+            mimetype='image/vnd.microsoft.icon'
+        )
+    except FileNotFoundError:
+        # If favicon doesn't exist, return a 204 No Content response
+        from flask import make_response
+        response = make_response('')
+        response.status_code = 204
+        return response
 
 @app.route('/health')
 def health_check():
