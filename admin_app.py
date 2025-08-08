@@ -1476,6 +1476,61 @@ def admin_send_invitations():
     users = User.query.filter_by(is_active=True).all()
     return render_template('admin_send_invitations.html', assessments=assessments, users=users)
 
+@admin_app.route('/invitations/<int:invitation_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_invitation(invitation_id):
+    invitation = Invitation.query.get_or_404(invitation_id)
+    
+    # Check if invitation has already been responded to
+    if invitation.is_completed:
+        flash('Cannot delete invitation that has already been completed!', 'error')
+        return redirect(url_for('admin_invitations'))
+    
+    # Store invitation details for flash message
+    assessment_title = invitation.assessment.title
+    recipient_email = invitation.email
+    
+    try:
+        # Delete the invitation
+        db.session.delete(invitation)
+        db.session.commit()
+        
+        flash(f'Invitation for "{assessment_title}" sent to {recipient_email} has been deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting invitation: {e}")
+        flash(f'Error deleting invitation: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_invitations'))
+
+@admin_app.route('/invitations/bulk-delete', methods=['POST'])
+@admin_required
+def admin_bulk_delete_invitations():
+    invitation_ids = request.json.get('invitation_ids', [])
+    
+    if not invitation_ids:
+        return jsonify({'success': False, 'message': 'No invitations selected'})
+    
+    try:
+        deleted_count = 0
+        for invitation_id in invitation_ids:
+            invitation = Invitation.query.get(invitation_id)
+            if invitation and not invitation.is_completed:
+                db.session.delete(invitation)
+                deleted_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted {deleted_count} invitation(s)',
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error bulk deleting invitations: {e}")
+        return jsonify({'success': False, 'message': f'Error deleting invitations: {str(e)}'})
+
 @admin_app.route('/reports')
 @admin_required
 def admin_reports():
