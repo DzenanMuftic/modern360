@@ -7,7 +7,7 @@
     <h1 class="h2 mb-0">
         <i class="fas fa-envelope me-2 text-primary"></i>Manage Invitations
     </h1>
-    <a href="{{ url_for('admin_send_invitations') }}" class="btn btn-primary">
+    <a href="{{ url_for('admin_app.admin_send_invitations') }}" class="btn btn-primary">
         <i class="fas fa-paper-plane me-2"></i>Send Invitations
     </a>
 </div>
@@ -103,7 +103,7 @@
                                     <i class="fas fa-copy"></i>
                                 </button>
                                 {% if not invitation.is_completed %}
-                                <form method="POST" action="{{ url_for('admin_delete_invitation', invitation_id=invitation.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this invitation? This action cannot be undone.')">
+                                <form method="POST" action="{{ url_for('admin_app.admin_delete_invitation', invitation_id=invitation.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this invitation? This action cannot be undone.')">
                                     <button type="submit" class="btn btn-outline-danger" title="Delete Invitation">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -123,7 +123,7 @@
             <ul class="pagination justify-content-center">
                 {% if invitations.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_invitations', page=invitations.prev_num) }}">Previous</a>
+                        <a class="page-link" href="{{ url_for('admin_app.admin_invitations', page=invitations.prev_num) }}">Previous</a>
                     </li>
                 {% endif %}
                 
@@ -131,7 +131,7 @@
                     {% if page_num %}
                         {% if page_num != invitations.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin_invitations', page=page_num) }}">{{ page_num }}</a>
+                                <a class="page-link" href="{{ url_for('admin_app.admin_invitations', page=page_num) }}">{{ page_num }}</a>
                             </li>
                         {% else %}
                             <li class="page-item active">
@@ -147,7 +147,7 @@
                 
                 {% if invitations.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_invitations', page=invitations.next_num) }}">Next</a>
+                        <a class="page-link" href="{{ url_for('admin_app.admin_invitations', page=invitations.next_num) }}">Next</a>
                     </li>
                 {% endif %}
             </ul>
@@ -158,7 +158,7 @@
             <i class="fas fa-envelope fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No invitations found</h5>
             <p class="text-muted">Send your first invitations to get started.</p>
-            <a href="{{ url_for('admin_send_invitations') }}" class="btn btn-primary">
+            <a href="{{ url_for('admin_app.admin_send_invitations') }}" class="btn btn-primary">
                 <i class="fas fa-paper-plane me-2"></i>Send First Invitation
             </a>
         </div>
@@ -233,7 +233,7 @@ function toggleBulkDelete() {
     }
     
     // Send delete request
-    fetch('{{ url_for("admin_bulk_delete_invitations") }}', {
+    fetch('{{ url_for("admin_app.admin_bulk_delete_invitations") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

@@ -80,7 +80,7 @@
                 <h6 class="mb-0">
                     <i class="fas fa-building me-2"></i>Recent Companies
                 </h6>
-                <a href="{{ url_for('admin_companies') }}" class="btn btn-light btn-sm">View All</a>
+                <a href="{{ url_for('admin_app.admin_companies') }}" class="btn btn-light btn-sm">View All</a>
             </div>
             <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                 {% if recent_companies %}
@@ -112,7 +112,7 @@
                 <h6 class="mb-0">
                     <i class="fas fa-users me-2"></i>Recent Users
                 </h6>
-                <a href="{{ url_for('admin_users') }}" class="btn btn-light btn-sm">View All</a>
+                <a href="{{ url_for('admin_app.admin_users') }}" class="btn btn-light btn-sm">View All</a>
             </div>
             <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                 {% if recent_users %}
@@ -149,7 +149,7 @@
                 <h6 class="mb-0">
                     <i class="fas fa-clipboard-list me-2"></i>Recent Assessments
                 </h6>
-                <a href="{{ url_for('admin_assessments') }}" class="btn btn-light btn-sm">View All</a>
+                <a href="{{ url_for('admin_app.admin_assessments') }}" class="btn btn-light btn-sm">View All</a>
             </div>
             <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                 {% if recent_assessments %}
@@ -181,7 +181,7 @@
                 <h6 class="mb-0">
                     <i class="fas fa-chart-bar me-2"></i>Recent Activity
                 </h6>
-                <a href="{{ url_for('admin_reports') }}" class="btn btn-light btn-sm">View Reports</a>
+                <a href="{{ url_for('admin_app.admin_reports') }}" class="btn btn-light btn-sm">View Reports</a>
             </div>
             <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                 {% if recent_responses %}
@@ -219,22 +219,22 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3">
-                        <a href="{{ url_for('admin_create_assessment') }}" class="btn btn-primary w-100 mb-2">
+                        <a href="{{ url_for('admin_app.admin_create_assessment') }}" class="btn btn-primary w-100 mb-2">
                             <i class="fas fa-plus me-2"></i>Create Assessment
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{{ url_for('admin_send_invitations') }}" class="btn btn-success w-100 mb-2">
+                        <a href="{{ url_for('admin_app.admin_send_invitations') }}" class="btn btn-success w-100 mb-2">
                             <i class="fas fa-envelope me-2"></i>Send Invitations
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{{ url_for('admin_create_user') }}" class="btn btn-info w-100 mb-2">
+                        <a href="{{ url_for('admin_app.admin_create_user') }}" class="btn btn-info w-100 mb-2">
                             <i class="fas fa-user-plus me-2"></i>Add User
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{{ url_for('admin_notifications') }}" class="btn btn-warning w-100 mb-2">
+                        <a href="{{ url_for('admin_app.admin_notifications') }}" class="btn btn-warning w-100 mb-2">
                             <i class="fas fa-bell me-2"></i>Notifications
                         </a>
                     </div>

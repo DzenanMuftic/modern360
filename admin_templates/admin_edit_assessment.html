@@ -15,7 +15,7 @@
     <h1 class="h2 mb-0">
         <i class="fas fa-edit me-2 text-primary"></i>Edit Assessment
     </h1>
-    <a href="{{ url_for('admin_assessments') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('admin_app.admin_assessments') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back to Assessments
     </a>
 </div>
@@ -321,7 +321,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <a href="{{ url_for('admin_assessment_participants', assessment_id=assessment.id) }}" 
+                            <a href="{{ url_for('admin_app.admin_assessment_participants', assessment_id=assessment.id) }}" 
                                class="btn btn-info me-2">
                                 <i class="fas fa-users me-2"></i>Manage Participants
                             </a>
@@ -330,7 +330,7 @@
                             </button>
                         </div>
                         <div>
-                            <a href="{{ url_for('admin_assessments') }}" class="btn btn-secondary me-2">
+                            <a href="{{ url_for('admin_app.admin_assessments') }}" class="btn btn-secondary me-2">
                                 <i class="fas fa-times me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">
@@ -422,7 +422,7 @@ function addCompany() {
     }
     
     // Send AJAX request to create company
-    fetch('/api/companies', {
+    fetch('/pravo/api/companies', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

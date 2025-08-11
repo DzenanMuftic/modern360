@@ -11,6 +11,7 @@ import random
 import string
 import json
 from dotenv import load_dotenv
+from functools import wraps
 
 # Load environment variables from .env file
 load_dotenv()
@@ -803,6 +804,35 @@ def create_tables():
     if not hasattr(create_tables, '_called'):
         db.create_all()
         create_tables._called = True
+
+# Template global function for admin
+@app.template_global()
+def get_pending_invitations_count():
+    return Invitation.query.filter_by(is_completed=False).count()
+
+@app.template_filter('datetime')
+def datetime_filter(dt):
+    if dt:
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    return ''
+
+# Import and register admin blueprint
+from admin_app import admin_app, init_admin_app
+
+# Initialize admin app with dependencies
+models = {
+    'Company': Company,
+    'User': User,
+    'Assessment': Assessment,
+    'AssessmentParticipant': AssessmentParticipant,
+    'Question': Question,
+    'Invitation': Invitation,
+    'AssessmentResponse': AssessmentResponse
+}
+init_admin_app(app, db, mail, models)
+
+# Register admin blueprint
+app.register_blueprint(admin_app)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

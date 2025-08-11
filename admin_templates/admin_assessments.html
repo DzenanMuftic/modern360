@@ -7,7 +7,7 @@
     <h1 class="h2 mb-0">
         <i class="fas fa-clipboard-list me-2 text-primary"></i>Manage Assessments
     </h1>
-    <a href="{{ url_for('admin_create_assessment') }}" class="btn btn-primary">
+    <a href="{{ url_for('admin_app.admin_create_assessment') }}" class="btn btn-primary">
         <i class="fas fa-plus me-2"></i>Create Assessment
     </a>
 </div>
@@ -99,16 +99,21 @@
                             {% set all_completed = total_participants > 0 and completed_responses == total_participants %}
                             
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('admin_edit_assessment', assessment_id=assessment.id) }}" 
+                                <a href="{{ url_for('admin_app.admin_edit_assessment', assessment_id=assessment.id) }}" 
                                    class="btn btn-outline-warning" title="Edit Assessment">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 {% if all_completed %}
-                                    <a href="{{ url_for('admin_export_assessment_excel', assessment_id=assessment.id) }}" 
+                                    <a href="{{ url_for('admin_app.admin_export_assessment_excel', assessment_id=assessment.id) }}" 
                                        class="btn btn-outline-success" title="Export to CSV">
                                         <i class="fas fa-download"></i>
                                     </a>
                                 {% endif %}
+                                <button type="button" class="btn btn-outline-danger" 
+                                        onclick="confirmDeleteAssessment({{ assessment.id }}, '{{ assessment.title | replace('\'', '\\\'') }}')"
+                                        title="Delete Assessment">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -123,7 +128,7 @@
             <ul class="pagination justify-content-center">
                 {% if assessments.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_assessments', page=assessments.prev_num) }}">Previous</a>
+                        <a class="page-link" href="{{ url_for('admin_app.admin_assessments', page=assessments.prev_num) }}">Previous</a>
                     </li>
                 {% endif %}
                 
@@ -131,7 +136,7 @@
                     {% if page_num %}
                         {% if page_num != assessments.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin_assessments', page=page_num) }}">{{ page_num }}</a>
+                                <a class="page-link" href="{{ url_for('admin_app.admin_assessments', page=page_num) }}">{{ page_num }}</a>
                             </li>
                         {% else %}
                             <li class="page-item active">
@@ -147,7 +152,7 @@
                 
                 {% if assessments.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_assessments', page=assessments.next_num) }}">Next</a>
+                        <a class="page-link" href="{{ url_for('admin_app.admin_assessments', page=assessments.next_num) }}">Next</a>
                     </li>
                 {% endif %}
             </ul>
@@ -158,7 +163,7 @@
             <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No assessments found</h5>
             <p class="text-muted">Get started by creating your first assessment.</p>
-            <a href="{{ url_for('admin_create_assessment') }}" class="btn btn-primary">
+            <a href="{{ url_for('admin_app.admin_create_assessment') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Create First Assessment
             </a>
         </div>
@@ -231,7 +236,7 @@ function viewAssessment(assessmentId) {
 
 function confirmDeleteAssessment(assessmentId, assessmentTitle) {
     document.getElementById('deleteAssessmentName').textContent = assessmentTitle;
-    document.getElementById('deleteAssessmentForm').action = '/assessments/' + assessmentId + '/delete';
+    document.getElementById('deleteAssessmentForm').action = '/pravo/assessments/' + assessmentId + '/delete';
     new bootstrap.Modal(document.getElementById('deleteAssessmentModal')).show();
 }
 </script>

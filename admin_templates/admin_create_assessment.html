@@ -15,7 +15,7 @@
     <h1 class="h2 mb-0">
         <i class="fas fa-plus-circle me-2 text-primary"></i>Create New Assessment
     </h1>
-    <a href="{{ url_for('admin_assessments') }}" class="btn btn-secondary">
+    <a href="{{ url_for('admin_app.admin_assessments') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back to Assessments
     </a>
 </div>
@@ -301,7 +301,7 @@
                         <button type="submit" class="btn btn-primary btn-lg px-5">
                             <i class="fas fa-save me-2"></i>Create Assessment
                         </button>
-                        <a href="{{ url_for('admin_assessments') }}" class="btn btn-secondary btn-lg px-4">
+                        <a href="{{ url_for('admin_app.admin_assessments') }}" class="btn btn-secondary btn-lg px-4">
                             <i class="fas fa-times me-2"></i>Cancel
                         </a>
                     </div>
@@ -388,18 +388,32 @@
                     <i class="fas fa-building me-2"></i>
                     <strong>Company:</strong> <span id="assesseeModalCompanyName">Please select a company first</span>
                 </div>
+                
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> Only one assessee can be selected per assessment. The assessee is the person being evaluated.
+                </div>
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>Select Existing from Company</h6>
-                        <select class="form-select" id="existingAssesseeSelect" size="8">
+                        <h6><i class="fas fa-users me-1"></i>Select Existing from Company</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Available users from the selected company:</small>
+                        </div>
+                        <select class="form-select" id="existingAssesseeSelect" size="8" style="font-size: 0.9rem;">
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <button type="button" class="btn btn-success w-100 mt-2" onclick="addExistingAssessee()">
-                            <i class="fas fa-plus me-1"></i>Add Selected
-                        </button>
+                        <div class="d-grid gap-2 mt-2">
+                            <button type="button" class="btn btn-success" onclick="addExistingAssessee()">
+                                <i class="fas fa-plus me-1"></i>Add Selected User
+                            </button>
+                            <small class="text-muted text-center">Select a user from the list above and click to add</small>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <h6>Add New Assessee</h6>
+                        <h6><i class="fas fa-user-plus me-1"></i>Add New Assessee</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Create a new user account for this assessment:</small>
+                        </div>
                         <form id="addAssesseeForm">
                             <div class="mb-3">
                                 <label for="assesseeName" class="form-label">Name *</label>
@@ -408,6 +422,7 @@
                             <div class="mb-3">
                                 <label for="assesseeEmail" class="form-label">Email *</label>
                                 <input type="email" class="form-control" id="assesseeEmail" required>
+                                <small class="form-text text-muted">Email can be the same as existing users</small>
                             </div>
                             <div class="mb-3">
                                 <label for="assesseeRole" class="form-label">Role</label>
@@ -416,9 +431,12 @@
                                 </select>
                                 <small class="form-text text-muted">Role automatically set to Assessee for this assessment</small>
                             </div>
-                            <button type="button" class="btn btn-primary w-100" onclick="addNewAssessee()">
-                                <i class="fas fa-user-plus me-1"></i>Create & Add Assessee
-                            </button>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary" onclick="addNewAssessee()">
+                                    <i class="fas fa-user-plus me-1"></i>Create & Add Assessee
+                                </button>
+                                <small class="text-muted text-center">This will create a new user account</small>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -572,7 +590,7 @@ document.getElementById('company_id').addEventListener('change', function() {
 });
 
 function loadCompanyUsers(companyId) {
-    fetch(`/api/company/${companyId}/users`)
+    fetch(`/pravo/api/company/${companyId}/users`)
         .then(response => response.json())
         .then(data => {
             updateUserSelects(data.users);
@@ -592,18 +610,26 @@ function updateUserSelects(users) {
     const assesseeRoles = ['user', 'assessee', 'manager'];
     const assessorRoles = ['user', 'assessor', 'manager', 'admin'];
     
-    users.filter(user => assesseeRoles.includes(user.role) && user.is_active)
-        .forEach(user => {
-            if (!selectedAssessees.has(user.id)) {
-                const option = document.createElement('option');
-                option.value = user.id;
-                option.textContent = `${user.name} (${user.email})`;
-                option.dataset.name = user.name;
-                option.dataset.email = user.email;
-                assesseeSelect.appendChild(option);
-            }
-        });
+    // Filter and add assessee options
+    const availableAssessees = users.filter(user => assesseeRoles.includes(user.role) && user.is_active && !selectedAssessees.has(user.id));
     
+    if (availableAssessees.length === 0) {
+        const option = document.createElement('option');
+        option.disabled = true;
+        option.textContent = '-- No available users in company --';
+        assesseeSelect.appendChild(option);
+    } else {
+        availableAssessees.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.name} - ${user.email} (${user.role})`;
+            option.dataset.name = user.name;
+            option.dataset.email = user.email;
+            assesseeSelect.appendChild(option);
+        });
+    }
+    
+    // Filter and add assessor options
     users.filter(user => assessorRoles.includes(user.role) && user.is_active)
         .forEach(user => {
             if (!selectedAssessors.has(user.id)) {
@@ -634,6 +660,12 @@ function openAddAssesseeModal() {
         alert('Please select a company first!');
         return;
     }
+    
+    // Update modal with company information
+    const selectedCompany = companySelect.options[companySelect.selectedIndex].text;
+    document.getElementById('assesseeModalCompanyName').textContent = selectedCompany;
+    
+    // Show modal
     new bootstrap.Modal(document.getElementById('addAssesseeModal')).show();
 }
 
@@ -661,7 +693,7 @@ function addCompany() {
         return;
     }
     
-    fetch('/api/companies', {
+    fetch('/pravo/api/companies', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -751,7 +783,7 @@ function addNewAssessee() {
     const requestData = { name, email, role, company_id: parseInt(companyId) };
     console.log('DEBUG: Sending request:', requestData);
     
-    fetch('/api/users', {
+    fetch('/pravo/api/users', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -828,7 +860,7 @@ function addNewAssessor() {
     const requestData = { name, email, role, company_id: parseInt(companyId) };
     console.log('DEBUG: Sending assessor request:', requestData);
     
-    fetch('/api/users', {
+    fetch('/pravo/api/users', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

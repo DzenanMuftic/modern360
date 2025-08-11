@@ -1,7 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response
-from flask_mail import Mail, Message
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, current_app
+from flask_mail import Message
 from datetime import datetime, timedelta
 import secrets
 import os
@@ -9,153 +7,50 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 import random
 import string
-from dotenv import load_dotenv
 import json
 import io
 import csv
 
-# Load environment variables from .env file
-load_dotenv()
+# Create admin blueprint
+admin_app = Blueprint('admin_app', __name__, template_folder='admin_templates', static_folder='static', url_prefix='/pravo')
 
-admin_app = Flask(__name__, template_folder='admin_templates', static_folder='static')
-admin_app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'admin-secret-key-change-in-production')
+# Import database models and extensions (will be set from main app)
+db = None
+mail = None
+Company = None
+User = None
+Assessment = None
+AssessmentParticipant = None
+Question = None
+Invitation = None
+AssessmentResponse = None
 
-# Database configuration - use same database as main app
-database_url = os.environ.get('DATABASE_URL', 'sqlite:///modern360.db')
-# Fix for Render.com PostgreSQL URL format
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-admin_app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-admin_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Mail configuration
-admin_app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-admin_app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-# Use SSL for port 465, TLS for port 587
-mail_port = int(os.environ.get('MAIL_PORT', 587))
-if mail_port == 465:
-    admin_app.config['MAIL_USE_SSL'] = True
-    admin_app.config['MAIL_USE_TLS'] = False
-else:
-    admin_app.config['MAIL_USE_TLS'] = True
-    admin_app.config['MAIL_USE_SSL'] = False
-admin_app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-admin_app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-admin_app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
-
-# Initialize extensions
-db = SQLAlchemy(admin_app)
-mail = Mail(admin_app)
-
-# Add custom Jinja2 functions
-@admin_app.template_global()
-def moment():
-    """Return current datetime for template comparisons"""
-    return datetime.utcnow()
-
-@admin_app.template_filter('datetime')
-def datetime_filter(dt, format='%Y-%m-%d %H:%M'):
-    """Format datetime for templates"""
-    if dt is None:
-        return ""
-    return dt.strftime(format)
-
-# Import models from main app (we'll use the same database)
-class Company(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), unique=True, nullable=False)
-    description = db.Column(db.Text)
-    industry = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
+def init_admin_app(app, database, mail_ext, models):
+    """Initialize admin app with main app dependencies"""
+    global db, mail, Company, User, Assessment, AssessmentParticipant, Question, Invitation, AssessmentResponse
     
-    # Relationships
-    users = db.relationship('User', backref='company_ref', lazy=True)
-    assessments = db.relationship('Assessment', backref='company_ref', lazy=True)
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    company = db.Column(db.String(150), nullable=True)  # Legacy field
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)  # New company reference
-    role = db.Column(db.String(20), default='user')  # admin, manager, user, assessee, assessor
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
-    last_login = db.Column(db.DateTime)
+    db = database
+    mail = mail_ext
+    Company = models['Company']
+    User = models['User'] 
+    Assessment = models['Assessment']
+    AssessmentParticipant = models['AssessmentParticipant']
+    Question = models['Question']
+    Invitation = models['Invitation']
+    AssessmentResponse = models['AssessmentResponse']
     
-    # Relationships
-    created_assessments = db.relationship('Assessment', backref='creator', lazy=True)
-    invitations_sent = db.relationship('Invitation', backref='sender', lazy=True)
-    responses = db.relationship('AssessmentResponse', backref='user', lazy=True)
-    assessee_participations = db.relationship('AssessmentParticipant', 
-                                            foreign_keys='AssessmentParticipant.assessee_id', 
-                                            backref='assessee', lazy=True)
-    assessor_participations = db.relationship('AssessmentParticipant', 
-                                            foreign_keys='AssessmentParticipant.assessor_id', 
-                                            backref='assessor', lazy=True)
+    # Add custom Jinja2 functions to main app
+    @app.template_global()
+    def moment():
+        """Return current datetime for template comparisons"""
+        return datetime.utcnow()
 
-class Assessment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    deadline = db.Column(db.DateTime)
-    is_active = db.Column(db.Boolean, default=True)
-    is_self_assessment = db.Column(db.Boolean, default=False)
-    
-    # Relationships
-    invitations = db.relationship('Invitation', backref='assessment', lazy=True)
-    responses = db.relationship('AssessmentResponse', backref='assessment', lazy=True)
-    questions = db.relationship('Question', backref='assessment', lazy=True)
-    participants = db.relationship('AssessmentParticipant', backref='assessment', lazy=True)
-
-class AssessmentParticipant(db.Model):
-    """Link between Assessment, Assessee, and Assessors"""
-    id = db.Column(db.Integer, primary_key=True)
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.id'), nullable=False)
-    assessee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    assessor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Null for self-assessment
-    assessor_relationship = db.Column(db.String(50), nullable=True)  # Manager, Peer, Direct Report
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Status tracking
-    self_assessment_completed = db.Column(db.Boolean, default=False)
-    assessor_assessment_completed = db.Column(db.Boolean, default=False)
-    self_assessment_date = db.Column(db.DateTime)
-    assessor_assessment_date = db.Column(db.DateTime)
-
-class Question(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.id'), nullable=False)
-    question_text = db.Column(db.Text, nullable=False)
-    question_group = db.Column(db.String(100), nullable=True)  # Question category/group
-    question_type = db.Column(db.String(50), nullable=False)  # rating, text, multiple_choice
-    language = db.Column(db.String(10), default='en')  # Language code (en, bs, etc.)
-    options = db.Column(db.Text)  # JSON string for multiple choice options
-    order = db.Column(db.Integer, default=0)
-
-class Invitation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.id'), nullable=False)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    email = db.Column(db.String(120), nullable=False)
-    token = db.Column(db.String(100), unique=True, nullable=False)
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
-    responded_at = db.Column(db.DateTime)
-    is_completed = db.Column(db.Boolean, default=False)
-
-class AssessmentResponse(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    invitation_id = db.Column(db.Integer, db.ForeignKey('invitation.id'))
-    participant_id = db.Column(db.Integer, db.ForeignKey('assessment_participant.id'), nullable=True)
-    responses = db.Column(db.Text)  # JSON string of responses
-    response_type = db.Column(db.String(20), default='assessor')  # 'self' or 'assessor'
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    @app.template_filter('datetime')
+    def datetime_filter(dt, format='%Y-%m-%d %H:%M'):
+        """Format datetime for templates"""
+        if dt is None:
+            return ""
+        return dt.strftime(format)
 
 # Admin credentials
 ADMIN_USERNAME = "admin"
@@ -165,17 +60,16 @@ ADMIN_PASSWORD = "admin123"
 def admin_required(f):
     def decorated_function(*args, **kwargs):
         if 'admin_logged_in' not in session:
-            return redirect(url_for('admin_login'))
+            return redirect(url_for('admin_app.admin_login'))
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Admin Routes
 @admin_app.route('/')
 def admin_index():
     if 'admin_logged_in' in session:
-        return redirect(url_for('admin_dashboard'))
-    return redirect(url_for('admin_login'))
+        return redirect(url_for('admin_app.admin_dashboard'))
+    return redirect(url_for('admin_app.admin_login'))
 
 @admin_app.route('/login', methods=['GET', 'POST'])
 def admin_login():
@@ -187,7 +81,7 @@ def admin_login():
             session['admin_logged_in'] = True
             session['admin_username'] = username
             flash('Successfully logged in as admin!', 'success')
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('admin_app.admin_dashboard'))
         else:
             flash('Invalid admin credentials!', 'error')
     
@@ -198,7 +92,7 @@ def admin_logout():
     session.pop('admin_logged_in', None)
     session.pop('admin_username', None)
     flash('You have been logged out.', 'info')
-    return redirect(url_for('admin_login'))
+    return redirect(url_for('admin_app.admin_login'))
 
 @admin_app.route('/dashboard')
 @admin_required
@@ -261,7 +155,7 @@ def admin_create_company():
         db.session.commit()
         
         flash(f'Company "{name}" created successfully!', 'success')
-        return redirect(url_for('admin_companies'))
+        return redirect(url_for('admin_app.admin_companies'))
     
     return render_template('admin_create_company.html')
 
@@ -278,7 +172,7 @@ def admin_edit_company(company_id):
         
         db.session.commit()
         flash(f'Company "{company.name}" updated successfully!', 'success')
-        return redirect(url_for('admin_companies'))
+        return redirect(url_for('admin_app.admin_companies'))
     
     return render_template('admin_edit_company.html', company=company)
 
@@ -290,14 +184,14 @@ def admin_delete_company(company_id):
     # Check if company has users or assessments
     if company.users or company.assessments:
         flash('Cannot delete company with existing users or assessments!', 'error')
-        return redirect(url_for('admin_companies'))
+        return redirect(url_for('admin_app.admin_companies'))
     
     name = company.name
     db.session.delete(company)
     db.session.commit()
     
     flash(f'Company "{name}" deleted successfully!', 'success')
-    return redirect(url_for('admin_companies'))
+    return redirect(url_for('admin_app.admin_companies'))
 
 @admin_app.route('/users')
 @admin_required
@@ -353,7 +247,7 @@ def admin_create_user():
         db.session.commit()
         
         flash(f'User {name} created successfully!', 'success')
-        return redirect(url_for('admin_users'))
+        return redirect(url_for('admin_app.admin_users'))
     
     companies = Company.query.filter_by(is_active=True).all()
     return render_template('admin_create_user.html', companies=companies)
@@ -381,7 +275,7 @@ def admin_edit_user(user_id):
         
         db.session.commit()
         flash(f'User {user.name} updated successfully!', 'success')
-        return redirect(url_for('admin_users'))
+        return redirect(url_for('admin_app.admin_users'))
     
     companies = Company.query.filter_by(is_active=True).all()
     return render_template('admin_edit_user.html', user=user, companies=companies)
@@ -426,7 +320,7 @@ def admin_delete_user(user_id):
             error_details.append(f"{active_invitations} pending invitation(s)")
         
         flash(f'Cannot delete user {user.name}! User has {", ".join(error_details)}. Please deactivate or complete these assessments first.', 'error')
-        return redirect(url_for('admin_users'))
+        return redirect(url_for('admin_app.admin_users'))
     
     # If no active assessments, proceed with deletion
     # Delete related records first
@@ -460,7 +354,7 @@ def admin_delete_user(user_id):
     db.session.commit()
     
     flash(f'User {user.name} deleted successfully!', 'success')
-    return redirect(url_for('admin_users'))
+    return redirect(url_for('admin_app.admin_users'))
 
 @admin_app.route('/assessments')
 @admin_required
@@ -560,9 +454,9 @@ def api_create_user():
         except (ValueError, TypeError):
             return jsonify({'success': False, 'message': 'Invalid company ID!'})
         
-        # Check if user already exists
+        # Check if user already exists (only prevent for non-assessee roles)
         existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
+        if existing_user and role != 'assessee':
             return jsonify({'success': False, 'message': 'User with this email already exists!'})
         
         # Get company name for legacy field
@@ -797,7 +691,7 @@ def admin_create_assessment():
             flash(f'Assessment "{title}" created successfully with {len(questions)} questions and {participants_created} participants! {sent_count} invitations sent.', 'success')
         else:
             flash(f'Assessment "{title}" created successfully with {len(questions)} questions and {participants_created} participants! Invitations can be sent later.', 'success')
-        return redirect(url_for('admin_assessments'))
+        return redirect(url_for('admin_app.admin_assessments'))
     
     companies = Company.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_active=True).all()
@@ -847,7 +741,7 @@ def admin_edit_assessment(assessment_id):
         
         db.session.commit()
         flash(f'Assessment "{assessment.title}" updated successfully!', 'success')
-        return redirect(url_for('admin_assessments'))
+        return redirect(url_for('admin_app.admin_assessments'))
     
     companies = Company.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_active=True).all()
@@ -902,7 +796,7 @@ def admin_add_participant(assessment_id):
     
     if not assessee_id:
         flash('Assessee is required!', 'error')
-        return redirect(url_for('admin_assessment_participants', assessment_id=assessment_id))
+        return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
     
     # Note: Removed check for existing assessee to allow duplicates
     # This allows the same person to be added multiple times as an assessee
@@ -931,7 +825,7 @@ def admin_add_participant(assessment_id):
     assessee = User.query.get(assessee_id)
     flash(f'Participants added successfully for {assessee.name}!', 'success')
     
-    return redirect(url_for('admin_assessment_participants', assessment_id=assessment_id))
+    return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
 
 @admin_app.route('/assessments/<int:assessment_id>/send-invitations', methods=['POST'])
 @admin_required
@@ -979,7 +873,7 @@ def admin_send_assessment_invitations(assessment_id):
     
     db.session.commit()
     flash(f'Sent {sent_count} invitations successfully!', 'success')
-    return redirect(url_for('admin_assessment_participants', assessment_id=assessment_id))
+    return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
 
 @admin_app.route('/assessments/<int:assessment_id>/delete', methods=['POST'])
 @admin_required
@@ -1010,7 +904,7 @@ def admin_delete_assessment(assessment_id):
         print(f"Error deleting assessment: {e}")
         flash(f'Error deleting assessment: {str(e)}', 'error')
     
-    return redirect(url_for('admin_assessments'))
+    return redirect(url_for('admin_app.admin_assessments'))
 
 # Export Assessment to Excel
 @admin_app.route('/assessments/<int:assessment_id>/export/excel')
@@ -1024,7 +918,7 @@ def admin_export_assessment_excel(assessment_id):
     
     if total_participants == 0 or completed_responses != total_participants:
         flash('Export is only available when all participants have completed the assessment.', 'warning')
-        return redirect(url_for('admin_assessments'))
+        return redirect(url_for('admin_app.admin_assessments'))
     
     # Create CSV content
     output = io.StringIO()
@@ -1165,7 +1059,7 @@ def admin_export_assessment_detailed(assessment_id):
     
     if total_participants == 0 or completed_responses != total_participants:
         flash('Export is only available when all participants have completed the assessment.', 'warning')
-        return redirect(url_for('admin_assessments'))
+        return redirect(url_for('admin_app.admin_assessments'))
     
     # Create detailed report content
     output = io.StringIO()
@@ -1470,7 +1364,7 @@ def admin_send_invitations():
         
         db.session.commit()
         flash(f'Sent {sent_count} invitations successfully!', 'success')
-        return redirect(url_for('admin_invitations'))
+        return redirect(url_for('admin_app.admin_invitations'))
     
     assessments = Assessment.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_active=True).all()
@@ -1484,7 +1378,7 @@ def admin_delete_invitation(invitation_id):
     # Check if invitation has already been responded to
     if invitation.is_completed:
         flash('Cannot delete invitation that has already been completed!', 'error')
-        return redirect(url_for('admin_invitations'))
+        return redirect(url_for('admin_app.admin_invitations'))
     
     # Store invitation details for flash message
     assessment_title = invitation.assessment.title
@@ -1501,7 +1395,7 @@ def admin_delete_invitation(invitation_id):
         print(f"Error deleting invitation: {e}")
         flash(f'Error deleting invitation: {str(e)}', 'error')
     
-    return redirect(url_for('admin_invitations'))
+    return redirect(url_for('admin_app.admin_invitations'))
 
 @admin_app.route('/invitations/bulk-delete', methods=['POST'])
 @admin_required
@@ -1597,7 +1491,7 @@ def send_reminder(invitation_id):
     except Exception as e:
         flash(f'Failed to send reminder: {str(e)}', 'error')
     
-    return redirect(url_for('admin_notifications'))
+    return redirect(url_for('admin_app.admin_notifications'))
 
 def send_self_assessment_invitation(email, assessment, token, assessee_name=None):
     """Send self-assessment invitation email"""
@@ -1833,7 +1727,7 @@ def favicon():
     try:
         # Try to serve the favicon from the static folder
         return send_from_directory(
-            os.path.join(admin_app.root_path, 'static'),
+            os.path.join(current_app.root_path, 'static'),
             'favicon.ico',
             mimetype='image/vnd.microsoft.icon'
         )
@@ -1843,18 +1737,3 @@ def favicon():
         response = make_response('')
         response.status_code = 204
         return response
-
-@admin_app.before_request
-def create_tables():
-    if not hasattr(create_tables, '_called'):
-        db.create_all()
-        create_tables._called = True
-
-# Mount the admin app under /admin using DispatcherMiddleware
-application = DispatcherMiddleware(None, {
-    '/admin': admin_app
-})
-
-if __name__ == '__main__':
-    admin_port = int(os.environ.get('ADMIN_PORT', 5001))
-    admin_app.run(host='0.0.0.0', port=admin_port, debug=os.environ.get('FLASK_ENV') == 'development')
