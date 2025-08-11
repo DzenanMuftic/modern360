@@ -122,7 +122,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.getElementById('invitationForm').addEventListener('submit', function(e) {
     const emails = document.getElementById('emails').value.trim();
     if (!emails) {

@@ -168,7 +168,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 function copyInvitationLink(token) {
     const mainAppUrl = '{{ config.get("MAIN_APP_URL", "https://asistentica.online") }}';
     const invitationUrl = `${mainAppUrl}/respond/${token}`;

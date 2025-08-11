@@ -326,7 +326,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 const form = document.getElementById('assessmentForm');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');

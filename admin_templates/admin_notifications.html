@@ -274,7 +274,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 function sendBulkReminders() {
     if (confirm('Send reminders to all pending participants?')) {
         // Implement bulk reminder functionality

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, g
 from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -10,6 +10,7 @@ import uuid
 import random
 import string
 import json
+import base64
 from dotenv import load_dotenv
 from functools import wraps
 
@@ -46,6 +47,46 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 mail = Mail(app)
+
+# CSP Configuration
+CSP_REPORT_ONLY = os.environ.get('CSP_REPORT_ONLY', 'true').lower() == 'true'
+
+def generate_nonce():
+    """Generate a cryptographically secure nonce for CSP"""
+    return base64.b64encode(secrets.token_bytes(16)).decode('utf-8')
+
+@app.before_request
+def generate_csp_nonce():
+    """Generate a nonce for each request"""
+    g.csp_nonce = generate_nonce()
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    # Generate CSP header
+    csp_policy = (
+        f"default-src 'self'; "
+        f"script-src 'self' 'nonce-{g.csp_nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        f"style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        f"font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        f"img-src 'self' data: https:; "
+        f"connect-src 'self'; "
+        f"frame-ancestors 'self'; "
+        f"form-action 'self'; "
+        f"base-uri 'self'; "
+        f"object-src 'none';"
+    )
+    
+    # Apply CSP header based on environment setting
+    if CSP_REPORT_ONLY:
+        response.headers['Content-Security-Policy-Report-Only'] = csp_policy
+    else:
+        response.headers['Content-Security-Policy'] = csp_policy
+    
+    # Note: Other security headers (X-Frame-Options, X-Content-Type-Options, etc.) 
+    # are handled by Nginx to avoid duplication
+    
+    return response
 
 # Database Models
 class Company(db.Model):

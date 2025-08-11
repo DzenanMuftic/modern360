@@ -281,7 +281,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 // Filter functionality
 function applyFilters() {
     const assessmentFilter = document.getElementById('filterAssessment').value;

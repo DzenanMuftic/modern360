@@ -494,7 +494,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.getElementById('togglePassword').addEventListener('click', function() {
     const pwd = document.getElementById('password');
     const icon = document.getElementById('toggleIcon');

@@ -219,7 +219,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 function viewAssessment(assessmentId) {
     // Load assessment details via AJAX (implement this endpoint in admin_app.py)
     document.getElementById('assessmentDetails').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';

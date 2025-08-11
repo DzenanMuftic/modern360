@@ -147,7 +147,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 // Make the assessor select more user-friendly
 document.addEventListener('DOMContentLoaded', function() {
     const assessorSelect = document.getElementById('assessor_ids');

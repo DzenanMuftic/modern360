@@ -227,7 +227,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 function viewResponseDetails(responseId) {
     document.getElementById('responseDetails').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
     new bootstrap.Modal(document.getElementById('responseModal')).show();

@@ -162,7 +162,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 // Auto-format email addresses
 document.getElementById('emails').addEventListener('blur', function() {
     let emails = this.value;

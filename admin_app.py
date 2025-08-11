@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, current_app, g
 from flask_mail import Message
 from datetime import datetime, timedelta
 import secrets
@@ -10,6 +10,7 @@ import string
 import json
 import io
 import csv
+import base64
 
 # Create admin blueprint
 admin_app = Blueprint('admin_app', __name__, template_folder='admin_templates', static_folder='static', url_prefix='/pravo')

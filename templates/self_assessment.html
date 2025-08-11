@@ -391,7 +391,7 @@
 }
 </style>
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.getElementById('selfAssessmentForm').addEventListener('submit', function(e) {
     e.preventDefault();
     

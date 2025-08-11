@@ -629,7 +629,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('assessmentForm');
     const progressBar = document.getElementById('progressBar');

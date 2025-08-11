@@ -550,7 +550,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 let questionCounter = 0;
 let selectedAssessees = new Map();
 let selectedAssessors = new Map();

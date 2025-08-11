@@ -176,7 +176,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 function confirmDelete(userId, userName) {
     document.getElementById('deleteUserName').textContent = userName;
     document.getElementById('deleteForm').action = '/pravo/users/' + userId + '/delete';

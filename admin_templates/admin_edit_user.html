@@ -175,7 +175,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ g.csp_nonce }}">
 function openAddCompanyModal() {
     var modal = new bootstrap.Modal(document.getElementById('addCompanyModal'));
     modal.show();
