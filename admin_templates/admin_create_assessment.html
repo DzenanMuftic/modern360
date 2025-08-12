@@ -68,7 +68,7 @@
                                 <option value="{{ company.id }}">{{ company.name }}</option>
                                 {% endfor %}
                             </select>
-                            <button type="button" class="btn btn-outline-primary" onclick="openAddCompanyModal()">
+                            <button type="button" class="btn btn-outline-primary" id="openAddCompanyBtn" onclick="openAddCompanyModal()">
                                 <i class="fas fa-plus me-1"></i>Add New Company
                             </button>
                         </div>
@@ -90,7 +90,7 @@
                             <label class="form-label mb-0">
                                 <i class="fas fa-user-check me-1"></i>Assessee * <small class="text-muted">(Only one can be selected)</small>
                             </label>
-                            <button type="button" class="btn btn-outline-success btn-sm" onclick="openAddAssesseeModal()">
+                            <button type="button" class="btn btn-outline-success btn-sm" id="openAddAssesseeBtn" onclick="openAddAssesseeModal()">
                                 <i class="fas fa-plus me-1"></i>Add Assessee
                             </button>
                         </div>
@@ -109,7 +109,7 @@
                             <label class="form-label mb-0">
                                 <i class="fas fa-user-tie me-1"></i>Assessors * <small class="text-muted">(with their roles)</small>
                             </label>
-                            <button type="button" class="btn btn-outline-info btn-sm" onclick="openAddAssessorModal()">
+                            <button type="button" class="btn btn-outline-info btn-sm" id="openAddAssessorBtn" onclick="openAddAssessorModal()">
                                 <i class="fas fa-plus me-1"></i>Add Assessor
                             </button>
                         </div>
@@ -276,7 +276,7 @@
                     <h5 class="mb-0">
                         <i class="fas fa-question-circle me-2"></i>Custom Assessment Questions
                     </h5>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="addQuestion()">
+                    <button type="button" class="btn btn-primary btn-sm" id="addQuestionBtn" onclick="addQuestion()">
                         <i class="fas fa-plus me-1"></i>Add Question
                     </button>
                 </div>
@@ -295,7 +295,7 @@
             <div class="card mt-4" id="create-section" style="display: none;">
                 <div class="card-body text-center">
                     <div class="d-flex justify-content-center gap-3">
-                        <button type="button" class="btn btn-outline-info btn-lg px-4" onclick="previewAssessment()">
+                        <button type="button" class="btn btn-outline-info btn-lg px-4" id="previewAssessmentBtn" onclick="previewAssessment()" style="display: none;">
                             <i class="fas fa-eye me-2"></i>Preview Assessment
                         </button>
                         <button type="submit" class="btn btn-primary btn-lg px-5">
@@ -365,7 +365,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="addCompany()">
+                <button type="button" class="btn btn-primary" id="addCompanyBtn" onclick="addCompany()">
                     <i class="fas fa-plus me-1"></i>Add Company
                 </button>
             </div>
@@ -403,7 +403,7 @@
                             <!-- Options will be populated dynamically -->
                         </select>
                         <div class="d-grid gap-2 mt-2">
-                            <button type="button" class="btn btn-success" onclick="addExistingAssessee()">
+                            <button type="button" class="btn btn-success" id="addExistingAssesseeBtn" onclick="addExistingAssessee()">
                                 <i class="fas fa-plus me-1"></i>Add Selected User
                             </button>
                             <small class="text-muted text-center">Select a user from the list above and click to add</small>
@@ -432,7 +432,7 @@
                                 <small class="form-text text-muted">Role automatically set to Assessee for this assessment</small>
                             </div>
                             <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-primary" onclick="addNewAssessee()">
+                                <button type="button" class="btn btn-primary" id="addNewAssesseeBtn" onclick="addNewAssessee()">
                                     <i class="fas fa-user-plus me-1"></i>Create & Add Assessee
                                 </button>
                                 <small class="text-muted text-center">This will create a new user account</small>
@@ -466,17 +466,31 @@
                         <select class="form-select" id="existingAssessorSelect" size="6">
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <div class="mb-2 mt-2">
-                            <label for="existingAssessorRelationship" class="form-label">Assessor Relationship *</label>
+                        <small class="form-text text-muted mb-2">
+                            Select one user from the company to add as assessor.
+                        </small>
+                        
+                        <!-- Relationship selection for existing user (initially hidden) -->
+                        <div id="existingUserRelationshipSection" style="display: none;" class="mt-3">
+                            <label for="existingAssessorRelationship" class="form-label">
+                                <strong>Selected User:</strong> <span id="selectedUserName"></span><br>
+                                <strong>Relationship to Assessee *</strong>
+                            </label>
                             <select class="form-select" id="existingAssessorRelationship" required>
                                 <option value="">Select Relationship</option>
                                 <option value="Manager">Manager / Supervisor</option>
                                 <option value="Peer">Peers / Colleagues</option>
                                 <option value="Direct Report">Direct Reports / Subordinates</option>
                             </select>
+                            <small class="form-text text-muted">
+                                <strong>Manager:</strong> Direct supervisor providing performance evaluation<br>
+                                <strong>Peer:</strong> Co-worker at same level evaluating collaboration<br>
+                                <strong>Direct Report:</strong> Employee evaluating leadership style
+                            </small>
                         </div>
-                        <button type="button" class="btn btn-success w-100" onclick="addExistingAssessor()">
-                            <i class="fas fa-plus me-1"></i>Add Selected
+                        
+                        <button type="button" class="btn btn-success w-100 mt-2" id="addExistingAssessorBtn" onclick="handleExistingAssessorSelection()">
+                            <i class="fas fa-plus me-1"></i><span id="addExistingBtnText">Add Selected</span>
                         </button>
                     </div>
                     <div class="col-md-6">
@@ -512,7 +526,7 @@
                                     <strong>Direct Report:</strong> Employee evaluating leadership style
                                 </small>
                             </div>
-                            <button type="button" class="btn btn-primary w-100" onclick="addNewAssessor()">
+                            <button type="button" class="btn btn-primary w-100" id="addNewAssessorBtn" onclick="addNewAssessor()">
                                 <i class="fas fa-user-plus me-1"></i>Create & Add Assessor
                             </button>
                         </form>
@@ -540,7 +554,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close Preview</button>
-                <button type="button" class="btn btn-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('assessmentPreviewModal')).hide(); document.getElementById('assessmentForm').submit();">
+                <button type="button" class="btn btn-primary" id="confirmCreateAssessmentBtn">
                     <i class="fas fa-save me-2"></i>Looks Good - Create Assessment
                 </button>
             </div>
@@ -590,28 +604,39 @@ document.getElementById('company_id').addEventListener('change', function() {
 });
 
 function loadCompanyUsers(companyId) {
+    console.log('DEBUG: Loading users for company ID:', companyId);
     fetch(`/pravo/api/company/${companyId}/users`)
-        .then(response => response.json())
+        .then(response => {
+            console.log('DEBUG: API response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('DEBUG: API response data:', data);
             updateUserSelects(data.users);
         })
         .catch(error => {
             console.error('Error fetching users:', error);
+            alert('Error loading company users. Please try again.');
         });
 }
 
 function updateUserSelects(users) {
+    console.log('DEBUG: All users from company:', users);
+    console.log('DEBUG: Active users:', users.filter(user => user.is_active));
+    console.log('DEBUG: Selected assessees:', Array.from(selectedAssessees.keys()));
+    console.log('DEBUG: Selected assessors:', Array.from(selectedAssessors.keys()));
+    
     const assesseeSelect = document.getElementById('existingAssesseeSelect');
     const assessorSelect = document.getElementById('existingAssessorSelect');
     
     assesseeSelect.innerHTML = '';
     assessorSelect.innerHTML = '';
     
-    const assesseeRoles = ['user', 'assessee', 'manager'];
-    const assessorRoles = ['user', 'assessor', 'manager', 'admin'];
+    // Show all active users from the company as potential assessees
+    // Filter and add assessee options - now includes all roles
+    const availableAssessees = users.filter(user => user.is_active && !selectedAssessees.has(user.id));
     
-    // Filter and add assessee options
-    const availableAssessees = users.filter(user => assesseeRoles.includes(user.role) && user.is_active && !selectedAssessees.has(user.id));
+    console.log('DEBUG: Available assessees after filtering:', availableAssessees);
     
     if (availableAssessees.length === 0) {
         const option = document.createElement('option');
@@ -622,25 +647,56 @@ function updateUserSelects(users) {
         availableAssessees.forEach(user => {
             const option = document.createElement('option');
             option.value = user.id;
-            option.textContent = `${user.name} - ${user.email} (${user.role})`;
+            option.textContent = `${user.name} - ${user.email}`;
             option.dataset.name = user.name;
             option.dataset.email = user.email;
             assesseeSelect.appendChild(option);
         });
     }
     
-    // Filter and add assessor options
-    users.filter(user => assessorRoles.includes(user.role) && user.is_active)
-        .forEach(user => {
-            if (!selectedAssessors.has(user.id)) {
-                const option = document.createElement('option');
-                option.value = user.id;
-                option.textContent = `${user.name} (${user.email})`;
-                option.dataset.name = user.name;
-                option.dataset.email = user.email;
-                assessorSelect.appendChild(option);
-            }
+    // Filter and add assessor options - show ALL active company users except:
+    // 1. Users already selected as assessors (to prevent duplicates)
+    // 2. The user selected as assessee (can't assess themselves)
+    const selectedAssesseeIds = Array.from(selectedAssessees.keys());
+    const availableAssessors = users.filter(user => 
+        user.is_active && 
+        !selectedAssessors.has(user.id) && 
+        !selectedAssesseeIds.includes(user.id) // Exclude selected assessees
+    );
+    
+    console.log('DEBUG: Available assessors after filtering:', availableAssessors);
+    console.log('DEBUG: Total users in company:', users.length);
+    console.log('DEBUG: Active users in company:', users.filter(user => user.is_active).length);
+    
+    console.log('DEBUG: Available assessors:', availableAssessors);
+    console.log('DEBUG: Selected assessees:', selectedAssesseeIds);
+    console.log('DEBUG: Selected assessors:', Array.from(selectedAssessors.keys()));
+    
+    if (availableAssessors.length === 0) {
+        const option = document.createElement('option');
+        option.disabled = true;
+        
+        if (users.length === 0) {
+            option.textContent = '-- No users found in this company --';
+        } else if (users.filter(user => user.is_active).length === 0) {
+            option.textContent = '-- No active users in this company --';
+        } else if (selectedAssesseeIds.length > 0 && users.filter(user => user.is_active).length === 1) {
+            option.textContent = '-- Only assessee available (can\'t assess themselves) --';
+        } else {
+            option.textContent = `-- All ${users.filter(user => user.is_active).length} active users are already selected --`;
+        }
+        
+        assessorSelect.appendChild(option);
+    } else {
+        availableAssessors.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.name} (${user.email})`;
+            option.dataset.name = user.name;
+            option.dataset.email = user.email;
+            assessorSelect.appendChild(option);
         });
+    }
 }
 
 // Modal functions
@@ -665,6 +721,9 @@ function openAddAssesseeModal() {
     const selectedCompany = companySelect.options[companySelect.selectedIndex].text;
     document.getElementById('assesseeModalCompanyName').textContent = selectedCompany;
     
+    // Load users for the selected company
+    loadCompanyUsers(companySelect.value);
+    
     // Show modal
     new bootstrap.Modal(document.getElementById('addAssesseeModal')).show();
 }
@@ -675,6 +734,15 @@ function openAddAssessorModal() {
         alert('Please select a company first!');
         return;
     }
+    
+    // Update modal with company information
+    const selectedCompany = companySelect.options[companySelect.selectedIndex].text;
+    document.getElementById('assessorModalCompanyName').textContent = selectedCompany;
+    
+    // Load users for the selected company
+    loadCompanyUsers(companySelect.value);
+    
+    // Show modal
     new bootstrap.Modal(document.getElementById('addAssessorModal')).show();
 }
 
@@ -815,31 +883,85 @@ function addNewAssessee() {
 
 function addExistingAssessor() {
     const select = document.getElementById('existingAssessorSelect');
-    const selected = select.options[select.selectedIndex];
-    const relationship = document.getElementById('existingAssessorRelationship').value;
+    const selectedOptions = Array.from(select.selectedOptions);
     
-    if (!selected || !relationship) {
-        alert('Please select an assessor and specify their relationship!');
+    if (selectedOptions.length === 0) {
+        alert('Please select at least one assessor!');
         return;
     }
     
-    const userId = selected.value;
-    const userName = selected.dataset.name;
-    const userEmail = selected.dataset.email;
-    
-    selectedAssessors.set(parseInt(userId), { 
-        name: userName, 
-        email: userEmail, 
-        relationship: relationship 
+    // Add each selected assessor
+    selectedOptions.forEach(option => {
+        const userId = option.value;
+        const userName = option.dataset.name;
+        const userEmail = option.dataset.email;
+        
+        // Check if assessor is already added
+        if (!selectedAssessors.has(parseInt(userId))) {
+            selectedAssessors.set(parseInt(userId), { 
+                name: userName, 
+                email: userEmail, 
+                relationship: 'Assessor' // Default relationship since we removed the selection
+            });
+        }
     });
+    
     updateAssessorsDisplay();
     updateUserSelects(getCurrentUsers());
     checkFormProgress();
     
-    // Clear the selection and relationship
+    // Clear the selection
     select.selectedIndex = -1;
-    document.getElementById('existingAssessorRelationship').value = '';
     
+    bootstrap.Modal.getInstance(document.getElementById('addAssessorModal')).hide();
+}
+
+function handleExistingAssessorSelection() {
+    const select = document.getElementById('existingAssessorSelect');
+    const relationshipSelect = document.getElementById('existingAssessorRelationship');
+    
+    if (select.selectedIndex === -1) {
+        alert('Please select an assessor!');
+        return;
+    }
+    
+    if (!relationshipSelect.value) {
+        alert('Please select a relationship!');
+        return;
+    }
+    
+    const selectedOption = select.options[select.selectedIndex];
+    const userId = selectedOption.value;
+    const userName = selectedOption.dataset.name;
+    const userEmail = selectedOption.dataset.email;
+    const relationship = relationshipSelect.value;
+    
+    // Check if assessor is already added
+    if (selectedAssessors.has(parseInt(userId))) {
+        alert('This assessor is already added!');
+        return;
+    }
+    
+    // Add the assessor with the selected relationship
+    selectedAssessors.set(parseInt(userId), { 
+        name: userName, 
+        email: userEmail, 
+        relationship: relationship
+    });
+    
+    // Clear selections
+    select.selectedIndex = -1;
+    relationshipSelect.selectedIndex = 0;
+    document.getElementById('existingUserRelationshipSection').style.display = 'none';
+    document.getElementById('selectedUserName').textContent = '';
+    
+    // Update displays
+    updateAssessorsDisplay();
+    updateUserSelects(getCurrentUsers());
+    checkFormProgress();
+    updateExistingAssessorButton();
+    
+    // Close modal
     bootstrap.Modal.getInstance(document.getElementById('addAssessorModal')).hide();
 }
 
@@ -897,7 +1019,7 @@ function addNewAssessor() {
 function updateAssesseesDisplay() {
     const container = document.getElementById('selected-assessees');
     const message = document.getElementById('no-assessees-message');
-    const addButton = document.querySelector('button[onclick="openAddAssesseeModal()"]');
+    const addButton = document.getElementById('openAddAssesseeBtn');
     
     if (selectedAssessees.size === 0) {
         message.style.display = 'block';
@@ -921,7 +1043,7 @@ function updateAssesseesDisplay() {
             html += `
                 <div class="badge bg-success me-2 mb-2 p-2">
                     <i class="fas fa-user-check me-1"></i>${user.name} (${user.email})
-                    <button type="button" class="btn-close btn-close-white ms-2" onclick="removeAssessee(${id})"></button>
+                    <button type="button" class="btn-close btn-close-white ms-2" data-remove-assessee-id="${id}"></button>
                 </div>
             `;
         });
@@ -962,7 +1084,7 @@ function updateAssessorsDisplay() {
             html += `
                 <div class="badge ${badgeClass} me-2 mb-2 p-2">
                     <i class="fas fa-user-tie me-1"></i>${user.name} (${user.email})${relationshipText}
-                    <button type="button" class="btn-close ${closeButtonClass} ms-2" onclick="removeAssessor(${id})"></button>
+                    <button type="button" class="btn-close ${closeButtonClass} ms-2" data-remove-assessor-id="${id}"></button>
                 </div>
             `;
         });
@@ -1155,6 +1277,63 @@ document.getElementById('use_template').addEventListener('change', function() {
     }
 });
 
+function updateExistingAssessorButton() {
+    const select = document.getElementById('existingAssessorSelect');
+    const relationshipSelect = document.getElementById('existingAssessorRelationship');
+    const button = document.getElementById('addExistingAssessorBtn');
+    
+    const hasSelectedAssessor = select.selectedIndex !== -1;
+    const hasSelectedRelationship = relationshipSelect.value !== '';
+    
+    // Enable button only if both assessor and relationship are selected
+    button.disabled = !(hasSelectedAssessor && hasSelectedRelationship);
+    
+    // Update button text
+    const buttonText = document.getElementById('addExistingBtnText');
+    if (hasSelectedAssessor && hasSelectedRelationship) {
+        buttonText.textContent = 'Add Selected';
+        button.title = '';
+    } else if (hasSelectedAssessor && !hasSelectedRelationship) {
+        buttonText.textContent = 'Select Relationship';
+        button.title = 'Please select a relationship';
+    } else {
+        buttonText.textContent = 'Select Assessor';
+        button.title = 'Please select an assessor first';
+    }
+}
+
+function setupAssessorSelection() {
+    const select = document.getElementById('existingAssessorSelect');
+    const relationshipSelect = document.getElementById('existingAssessorRelationship');
+    const relationshipSection = document.getElementById('existingUserRelationshipSection');
+    const selectedUserName = document.getElementById('selectedUserName');
+    
+    if (!select || !relationshipSelect || !relationshipSection) return;
+    
+    // Initially disable the button
+    updateExistingAssessorButton();
+    
+    // Handle assessor selection
+    select.addEventListener('change', function() {
+        if (this.selectedIndex !== -1) {
+            const selectedOption = this.options[this.selectedIndex];
+            selectedUserName.textContent = selectedOption.dataset.name;
+            relationshipSection.style.display = 'block';
+            // Reset relationship selection when assessor changes
+            relationshipSelect.selectedIndex = 0;
+        } else {
+            relationshipSection.style.display = 'none';
+            selectedUserName.textContent = '';
+        }
+        updateExistingAssessorButton();
+    });
+    
+    // Handle relationship selection
+    relationshipSelect.addEventListener('change', function() {
+        updateExistingAssessorButton();
+    });
+}
+
 // Show Bosnian preview by default
 document.addEventListener('DOMContentLoaded', function() {
     const englishPreview = document.getElementById('english-preview');
@@ -1162,6 +1341,147 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (englishPreview) englishPreview.style.display = 'none';
     if (bosnianPreview) bosnianPreview.style.display = 'block';
+
+    // Set up assessor selection functionality
+    setupAssessorSelection();
+
+    // Wire up buttons without relying on inline handlers (CSP safe)
+    const openAddCompanyBtn = document.getElementById('openAddCompanyBtn');
+    if (openAddCompanyBtn) {
+        openAddCompanyBtn.addEventListener('click', function () {
+            if (typeof openAddCompanyModal === 'function') {
+                openAddCompanyModal();
+            }
+        });
+    }
+
+    const addCompanyBtn = document.getElementById('addCompanyBtn');
+    if (addCompanyBtn) {
+        addCompanyBtn.addEventListener('click', function () {
+            if (typeof addCompany === 'function') {
+                addCompany();
+            }
+        });
+    }
+
+    const openAddAssesseeBtn = document.getElementById('openAddAssesseeBtn');
+    if (openAddAssesseeBtn) {
+        openAddAssesseeBtn.addEventListener('click', function () {
+            if (typeof openAddAssesseeModal === 'function') {
+                openAddAssesseeModal();
+            }
+        });
+    }
+
+    const addExistingAssesseeBtn = document.getElementById('addExistingAssesseeBtn');
+    if (addExistingAssesseeBtn) {
+        addExistingAssesseeBtn.addEventListener('click', function () {
+            if (typeof addExistingAssessee === 'function') {
+                addExistingAssessee();
+            }
+        });
+    }
+
+    const addNewAssesseeBtn = document.getElementById('addNewAssesseeBtn');
+    if (addNewAssesseeBtn) {
+        addNewAssesseeBtn.addEventListener('click', function () {
+            if (typeof addNewAssessee === 'function') {
+                addNewAssessee();
+            }
+        });
+    }
+
+    const openAddAssessorBtn = document.getElementById('openAddAssessorBtn');
+    if (openAddAssessorBtn) {
+        openAddAssessorBtn.addEventListener('click', function () {
+            if (typeof openAddAssessorModal === 'function') {
+                openAddAssessorModal();
+            }
+        });
+    }
+
+    const addExistingAssessorBtn = document.getElementById('addExistingAssessorBtn');
+    if (addExistingAssessorBtn) {
+        addExistingAssessorBtn.addEventListener('click', function () {
+            if (typeof addExistingAssessor === 'function') {
+                addExistingAssessor();
+            }
+        });
+    }
+
+    const addNewAssessorBtn = document.getElementById('addNewAssessorBtn');
+    if (addNewAssessorBtn) {
+        addNewAssessorBtn.addEventListener('click', function () {
+            if (typeof addNewAssessor === 'function') {
+                addNewAssessor();
+            }
+        });
+    }
+
+    // Preview Assessment (CSP-safe)
+    const previewBtn = document.getElementById('previewAssessmentBtn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function () {
+            if (typeof previewAssessment === 'function') {
+                previewAssessment();
+            }
+        });
+    }
+
+    // Add Question (CSP-safe)
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', function () {
+            if (typeof addQuestion === 'function') {
+                addQuestion();
+            }
+        });
+    }
+
+    // Confirm create from preview (CSP-safe)
+    const confirmCreateBtn = document.getElementById('confirmCreateAssessmentBtn');
+    if (confirmCreateBtn) {
+        confirmCreateBtn.addEventListener('click', function () {
+            const modalEl = document.getElementById('assessmentPreviewModal');
+            const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            inst.hide();
+            const form = document.getElementById('assessmentForm');
+            if (form) form.submit();
+        });
+    }
+
+    // Delegate clicks for dynamically generated remove buttons (chips/questions)
+    document.body.addEventListener('click', function (e) {
+        // Remove assessee chip
+        const assesseeRemoveBtn = e.target.closest('[data-remove-assessee-id]');
+        if (assesseeRemoveBtn) {
+            const id = parseInt(assesseeRemoveBtn.getAttribute('data-remove-assessee-id'));
+            if (!isNaN(id) && typeof removeAssessee === 'function') {
+                removeAssessee(id);
+            }
+            return;
+        }
+
+        // Remove assessor chip
+        const assessorRemoveBtn = e.target.closest('[data-remove-assessor-id]');
+        if (assessorRemoveBtn) {
+            const id = parseInt(assessorRemoveBtn.getAttribute('data-remove-assessor-id'));
+            if (!isNaN(id) && typeof removeAssessor === 'function') {
+                removeAssessor(id);
+            }
+            return;
+        }
+
+        // Remove question button
+        const removeQuestionBtn = e.target.closest('[data-remove-question-idx]');
+        if (removeQuestionBtn) {
+            const idx = parseInt(removeQuestionBtn.getAttribute('data-remove-question-idx'));
+            if (!isNaN(idx) && typeof removeQuestion === 'function') {
+                removeQuestion(idx);
+            }
+            return;
+        }
+    });
 });
 
 function addQuestion() {
@@ -1172,7 +1492,7 @@ function addQuestion() {
         <div class="question-item border rounded p-3 mb-3" id="question_${questionCounter}">
             <div class="d-flex justify-content-between align-items-start mb-3">
                 <h6 class="mb-0">Question ${questionCounter + 1}</h6>
-                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeQuestion(${questionCounter})">
+                <button type="button" class="btn btn-outline-danger btn-sm" data-remove-question-idx="${questionCounter}">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>

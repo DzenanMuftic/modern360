@@ -125,7 +125,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{{ url_for('admin_app.admin_dashboard') }}">>
+            <a class="navbar-brand fw-bold" href="{{ url_for('admin_app.admin_dashboard') }}">
                 <i class="fas fa-shield-alt me-2"></i>Modern360 Admin
             </a>
             
@@ -134,7 +134,7 @@
                 <span class="navbar-text me-3">
                     <i class="fas fa-user me-1"></i>Welcome, {{ session.admin_username }}
                 </span>
-                <a class="nav-link" href="{{ url_for('admin_app.admin_logout') }}">>
+                <a class="nav-link" href="{{ url_for('admin_app.admin_logout') }}">
                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                 </a>
             </div>
@@ -148,31 +148,37 @@
             <!-- Sidebar -->
             <div class="col-md-2 sidebar">
                 <nav class="nav flex-column">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_dashboard' }}" href="{{ url_for('admin_app.admin_dashboard') }}">>
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_dashboard' }}" href="{{ url_for('admin_app.admin_dashboard') }}">
                         <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                     </a>
-                    <a class="nav-link {{ 'active' if 'assessments' in request.endpoint }}" href="{{ url_for('admin_app.admin_assessments') }}">>
+                    <a class="nav-link {{ 'active' if 'assessments' in request.endpoint }}" href="{{ url_for('admin_app.admin_assessments') }}">
                         <i class="fas fa-clipboard-list me-2"></i>Assessments
                     </a>
-                    <a class="nav-link {{ 'active' if 'companies' in request.endpoint }}" href="{{ url_for('admin_app.admin_companies') }}">>
+                    <a class="nav-link {{ 'active' if 'companies' in request.endpoint }}" href="{{ url_for('admin_app.admin_companies') }}">
                         <i class="fas fa-building me-2"></i>Companies
                     </a>
-                    <a class="nav-link {{ 'active' if 'users' in request.endpoint }}" href="{{ url_for('admin_app.admin_users') }}">>
+                    <a class="nav-link {{ 'active' if 'users' in request.endpoint }}" href="{{ url_for('admin_app.admin_users') }}">
                         <i class="fas fa-users me-2"></i>Users
                     </a>
-                    <a class="nav-link {{ 'active' if 'questions' in request.endpoint }}" href="{{ url_for('admin_app.admin_question_templates') }}">>
+                    <a class="nav-link {{ 'active' if 'questions' in request.endpoint }}" href="{{ url_for('admin_app.admin_question_templates') }}">
                         <i class="fas fa-question-circle me-2"></i>Question Templates
                     </a>
-                    <a class="nav-link {{ 'active' if 'invitations' in request.endpoint }}" href="{{ url_for('admin_app.admin_invitations') }}">>
+                    <!-- Invitations link hidden per user request -->
+                    <!--
+                    <a class="nav-link {{ 'active' if 'invitations' in request.endpoint }}" href="{{ url_for('admin_app.admin_invitations') }}">
                         <i class="fas fa-envelope me-2"></i>Invitations
                     </a>
-                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_reports' }}" href="{{ url_for('admin_app.admin_reports') }}">>
+                    -->
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_reports' }}" href="{{ url_for('admin_app.admin_reports') }}">
                         <i class="fas fa-chart-bar me-2"></i>Reports
                     </a>
-                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_notifications' }}" href="{{ url_for('admin_app.admin_notifications') }}">>
+                    <!-- Notifications link hidden per user request -->
+                    <!--
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_notifications' }}" href="{{ url_for('admin_app.admin_notifications') }}">
                         <i class="fas fa-bell me-2"></i>Notifications
                     </a>
-                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_all_data' }}" href="{{ url_for('admin_app.admin_all_data') }}">>
+                    -->
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin_app.admin_all_data' }}" href="{{ url_for('admin_app.admin_all_data') }}">
                         <i class="fas fa-database me-2"></i>All Data
                     </a>
                 </nav>

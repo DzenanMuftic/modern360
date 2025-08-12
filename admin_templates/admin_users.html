@@ -73,7 +73,7 @@
                                 <a href="{{ url_for('admin_app.admin_edit_user', user_id=user.id) }}" class="btn btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <button type="button" class="btn btn-outline-danger" onclick="confirmDelete({{ user.id }}, '{{ user.name }}')" title="Delete">
+                                <button type="button" class="btn btn-outline-danger delete-user-btn" data-user-id="{{ user.id }}" data-user-name="{{ user.name }}" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -182,5 +182,16 @@ function confirmDelete(userId, userName) {
     document.getElementById('deleteForm').action = '/pravo/users/' + userId + '/delete';
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+// Wire delete buttons without inline JS (CSP-safe)
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.delete-user-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.getAttribute('data-user-id');
+            const name = this.getAttribute('data-user-name') || '';
+            confirmDelete(id, name);
+        });
+    });
+});
 </script>
 {% endblock %}

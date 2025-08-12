@@ -614,14 +614,23 @@
 </div>
 
 <!-- Success Modal -->
-<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-body success-container">
-                <span class="material-icons success-icon">check_circle</span>
+            <div class="modal-body success-container text-center">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
                 <h3 class="text-success mb-3">Assessment Submitted Successfully!</h3>
                 <p class="text-muted mb-4">Thank you for providing valuable feedback. Your responses have been recorded.</p>
-                <button type="button" class="btn btn-primary" onclick="window.close()">Close Window</button>
+                <div class="alert alert-success" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Your assessment has been successfully submitted and saved.
+                </div>
+                <p class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    This dialog will automatically close in <span id="countdown">5</span> seconds.
+                </p>
             </div>
         </div>
     </div>
@@ -800,6 +809,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // Countdown and auto-hide modal after 5 seconds
+                let countdownValue = 5;
+                const countdownElement = document.getElementById('countdown');
+                
+                const countdownInterval = setInterval(() => {
+                    countdownValue--;
+                    if (countdownElement) {
+                        countdownElement.textContent = countdownValue;
+                    }
+                    
+                    if (countdownValue <= 0) {
+                        clearInterval(countdownInterval);
+                        successModal.hide();
+                    }
+                }, 1000);
+                
+                // Disable the form to prevent resubmission
+                form.style.pointerEvents = 'none';
+                form.style.opacity = '0.7';
+                
             } else {
                 throw new Error(data.message || 'Submission failed');
             }

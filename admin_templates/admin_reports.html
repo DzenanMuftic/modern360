@@ -7,14 +7,6 @@
     <h1 class="h2 mb-0">
         <i class="fas fa-chart-bar me-2 text-primary"></i>Reports & Analytics
     </h1>
-    <div class="btn-group">
-        <button type="button" class="btn btn-outline-primary" onclick="exportData('csv')">
-            <i class="fas fa-download me-1"></i>Export CSV
-        </button>
-        <button type="button" class="btn btn-outline-primary" onclick="exportData('pdf')">
-            <i class="fas fa-file-pdf me-1"></i>Export PDF
-        </button>
-    </div>
 </div>
 
 <!-- Assessment Completion Rates -->
@@ -101,6 +93,7 @@
                         <th>Role</th>
                         <th>Assessments Created</th>
                         <th>Responses Submitted</th>
+                        <th>Completion Status</th>
                         <th>Invitations Sent</th>
                         <th>Activity Score</th>
                     </tr>
@@ -134,7 +127,24 @@
                             <span class="badge bg-primary">{{ item.assessments_created }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-success">{{ item.responses_submitted }}</span>
+                            {% if item.responses_submitted > 0 %}
+                                <span class="badge bg-success fs-6">
+                                    <i class="fas fa-check-circle me-1"></i>{{ item.responses_submitted }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ item.responses_submitted }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.responses_submitted > 0 %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-trophy me-1"></i>Assessment Completed
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Pending
+                                </span>
+                            {% endif %}
                         </td>
                         <td>
                             <span class="badge bg-info">{{ item.invitations_sent }}</span>
@@ -296,16 +306,5 @@ new Chart(assessmentTrendCtx, {
         }
     }
 });
-
-function exportData(format) {
-    // Placeholder for export functionality
-    alert(`Export to ${format.toUpperCase()} functionality will be implemented here.`);
-    
-    // In a real implementation, you would:
-    // 1. Collect all the data
-    // 2. Format it according to the requested format
-    // 3. Create a downloadable file
-    // 4. Trigger the download
-}
 </script>
 {% endblock %}

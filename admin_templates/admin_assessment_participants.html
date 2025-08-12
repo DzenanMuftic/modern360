@@ -28,14 +28,15 @@
                 <div class="col-md-6">
                     <label for="assessor_ids" class="form-label">Assessors</label>
                     <select class="form-select" id="assessor_ids" name="assessor_ids" multiple>
-                        {% for user in assessors %}
-                        <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
-                        {% endfor %}
+                        <option value="">Select an assessee first</option>
                     </select>
                     <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple assessors</small>
+                    <div id="assessor_loading" style="display: none;" class="text-muted mt-2">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Loading available assessors...
+                    </div>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
+                    <button type="submit" class="btn btn-primary w-100" id="add_participant_btn" disabled>
                         <i class="fas fa-plus me-2"></i>Add
                     </button>
                 </div>
@@ -66,6 +67,7 @@
                         <th>Self-Assessment</th>
                         <th>Assessor Assessment</th>
                         <th>Created</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,6 +125,21 @@
                             {% endif %}
                         </td>
                         <td>{{ participant.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if participant.assessor %}
+                                <!-- Only show delete button for assessor evaluations, not self-assessments -->
+                                <form method="POST" action="{{ url_for('admin_app.admin_delete_participant', assessment_id=assessment.id, participant_id=participant.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to remove this assessor? This action cannot be undone.');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i>Delete
+                                    </button>
+                                </form>
+                            {% else %}
+                                <!-- Self-assessments cannot be deleted -->
+                                <span class="text-muted">
+                                    <i class="fas fa-lock me-1"></i>Protected
+                                </span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -148,12 +165,70 @@
 
 {% block extra_js %}
 <script nonce="{{ g.csp_nonce }}">
-// Make the assessor select more user-friendly
 document.addEventListener('DOMContentLoaded', function() {
+    const assesseeSelect = document.getElementById('assessee_id');
     const assessorSelect = document.getElementById('assessor_ids');
-    if (assessorSelect) {
-        assessorSelect.setAttribute('size', '4');
-    }
+    const addButton = document.getElementById('add_participant_btn');
+    const loadingDiv = document.getElementById('assessor_loading');
+    
+    // Make the assessor select more user-friendly
+    assessorSelect.setAttribute('size', '4');
+    
+    // Update available assessors when assessee changes
+    assesseeSelect.addEventListener('change', function() {
+        const assesseeId = this.value;
+        
+        if (!assesseeId) {
+            // Reset assessor select
+            assessorSelect.innerHTML = '<option value="">Select an assessee first</option>';
+            addButton.disabled = true;
+            return;
+        }
+        
+        // Show loading
+        loadingDiv.style.display = 'block';
+        assessorSelect.disabled = true;
+        addButton.disabled = true;
+        
+        // Fetch available assessors
+        fetch(`{{ url_for('admin_app.api_available_assessors', assessment_id=assessment.id, assessee_id=0) }}`.replace('0', assesseeId))
+            .then(response => response.json())
+            .then(data => {
+                // Clear existing options
+                assessorSelect.innerHTML = '';
+                
+                if (data.assessors.length > 0) {
+                    // Add available assessors
+                    data.assessors.forEach(assessor => {
+                        const option = document.createElement('option');
+                        option.value = assessor.id;
+                        option.textContent = `${assessor.name} (${assessor.email})`;
+                        assessorSelect.appendChild(option);
+                    });
+                    addButton.disabled = false;
+                } else {
+                    // No available assessors
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No available assessors (all already assigned)';
+                    assessorSelect.appendChild(option);
+                }
+                
+                assessorSelect.disabled = false;
+                loadingDiv.style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error fetching assessors:', error);
+                assessorSelect.innerHTML = '<option value="">Error loading assessors</option>';
+                assessorSelect.disabled = false;
+                loadingDiv.style.display = 'none';
+            });
+    });
+    
+    // Enable/disable add button based on assessor selection
+    assessorSelect.addEventListener('change', function() {
+        addButton.disabled = assesseeSelect.value === '' || assessorSelect.selectedOptions.length === 0;
+    });
 });
 </script>
 {% endblock %}

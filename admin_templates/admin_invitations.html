@@ -93,7 +93,7 @@
                         <td>
                             <div class="btn-group btn-group-sm">
                                 {% if not invitation.is_completed %}
-                                <form method="POST" action="{{ url_for('send_reminder', invitation_id=invitation.id) }}" style="display: inline;">
+                                <form method="POST" action="{{ url_for('admin_app.send_reminder', invitation_id=invitation.id) }}" style="display: inline;">
                                     <button type="submit" class="btn btn-outline-primary" title="Send Reminder">
                                         <i class="fas fa-bell"></i>
                                     </button>

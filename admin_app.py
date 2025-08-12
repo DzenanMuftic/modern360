@@ -394,6 +394,42 @@ def api_company_users(company_id):
         ]
     })
 
+@admin_app.route('/api/assessment/<int:assessment_id>/available-assessors/<int:assessee_id>')
+@admin_required
+def api_available_assessors(assessment_id, assessee_id):
+    """API endpoint to get available assessors for a specific assessee in an assessment"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+    
+    # Get ALL active users from the same company as the assessment
+    # No role filtering - any user can be an assessor in any assessment
+    company_users = User.query.filter_by(company_id=assessment.company_id, is_active=True).all()
+    
+    # Get existing assessors for this assessee in this assessment
+    existing_assessors = db.session.query(AssessmentParticipant.assessor_id).filter(
+        AssessmentParticipant.assessment_id == assessment_id,
+        AssessmentParticipant.assessee_id == assessee_id,
+        AssessmentParticipant.assessor_id.isnot(None)
+    ).all()
+    existing_assessor_ids = [id[0] for id in existing_assessors]
+    
+    # Filter out existing assessors and the assessee themselves
+    available_assessors = [
+        user for user in company_users 
+        if user.id not in existing_assessor_ids and user.id != assessee_id
+    ]
+    
+    return jsonify({
+        'assessors': [
+            {
+                'id': assessor.id,
+                'name': assessor.name,
+                'email': assessor.email,
+                'role': assessor.role  # Keep showing role for reference
+            }
+            for assessor in available_assessors
+        ]
+    })
+
 @admin_app.route('/api/companies', methods=['POST'])
 @admin_required
 def api_create_company():
@@ -779,10 +815,12 @@ def admin_assessment_participants(assessment_id):
     assessment = Assessment.query.get_or_404(assessment_id)
     participants = AssessmentParticipant.query.filter_by(assessment_id=assessment_id).all()
     
-    # Get users from the same company as the assessment
+    # Get ALL active users from the same company as the assessment
+    # No role filtering - any user can be assessee or assessor in any assessment
     company_users = User.query.filter_by(company_id=assessment.company_id, is_active=True).all()
-    assessees = [u for u in company_users if u.role in ['assessee', 'user']]
-    assessors = [u for u in company_users if u.role in ['assessor', 'manager', 'user']]
+    # For backward compatibility, still separate the lists but include all users
+    assessees = company_users  # Any user can be an assessee
+    assessors = company_users  # Any user can be an assessor
     
     return render_template('admin_assessment_participants.html', 
                          assessment=assessment, participants=participants,
@@ -825,6 +863,66 @@ def admin_add_participant(assessment_id):
     # Send invitations
     assessee = User.query.get(assessee_id)
     flash(f'Participants added successfully for {assessee.name}!', 'success')
+    
+    return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
+
+@admin_app.route('/assessments/<int:assessment_id>/participant/<int:participant_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_participant(assessment_id, participant_id):
+    assessment = Assessment.query.get_or_404(assessment_id)
+    participant = AssessmentParticipant.query.get_or_404(participant_id)
+    
+    # Verify that the participant belongs to this assessment
+    if participant.assessment_id != assessment_id:
+        flash('Invalid participant for this assessment!', 'error')
+        return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
+    
+    # Check if there are any responses associated with this participant
+    responses = AssessmentResponse.query.filter_by(participant_id=participant_id).all()
+    
+    if responses:
+        # If there are responses, ask for confirmation or prevent deletion
+        participant_name = participant.assessor.name if participant.assessor else participant.assessee.name
+        participant_type = "assessor" if participant.assessor else "self-assessment"
+        flash(f'Cannot delete {participant_type} {participant_name} - they have already submitted responses!', 'error')
+        return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
+    
+    # Check for pending invitations and delete them too
+    if participant.assessor:
+        pending_invitations = Invitation.query.filter_by(
+            assessment_id=assessment_id,
+            email=participant.assessor.email,
+            is_completed=False
+        ).all()
+    else:
+        pending_invitations = Invitation.query.filter_by(
+            assessment_id=assessment_id,
+            email=participant.assessee.email,
+            is_completed=False
+        ).all()
+    
+    # Delete pending invitations
+    for invitation in pending_invitations:
+        db.session.delete(invitation)
+    
+    # Store participant info for flash message
+    if participant.assessor:
+        participant_name = participant.assessor.name
+        participant_type = "Assessor"
+        assessee_name = participant.assessee.name
+    else:
+        participant_name = participant.assessee.name
+        participant_type = "Self-assessment"
+        assessee_name = participant.assessee.name
+    
+    # Delete the participant
+    db.session.delete(participant)
+    db.session.commit()
+    
+    if participant.assessor:
+        flash(f'{participant_type} {participant_name} removed from assessment for {assessee_name}!', 'success')
+    else:
+        flash(f'{participant_type} for {participant_name} removed from assessment!', 'success')
     
     return redirect(url_for('admin_app.admin_assessment_participants', assessment_id=assessment_id))
 
@@ -912,14 +1010,6 @@ def admin_delete_assessment(assessment_id):
 @admin_required
 def admin_export_assessment_excel(assessment_id):
     assessment = Assessment.query.get_or_404(assessment_id)
-    
-    # Check if all participants have responded
-    total_participants = len(assessment.invitations)
-    completed_responses = len(assessment.responses)
-    
-    if total_participants == 0 or completed_responses != total_participants:
-        flash('Export is only available when all participants have completed the assessment.', 'warning')
-        return redirect(url_for('admin_app.admin_assessments'))
     
     # Create CSV content
     output = io.StringIO()
@@ -1054,13 +1144,9 @@ def admin_export_assessment_excel(assessment_id):
 def admin_export_assessment_detailed(assessment_id):
     assessment = Assessment.query.get_or_404(assessment_id)
     
-    # Check if all participants have responded
+    # Get participant counts for reporting
     total_participants = len(assessment.invitations)
     completed_responses = len(assessment.responses)
-    
-    if total_participants == 0 or completed_responses != total_participants:
-        flash('Export is only available when all participants have completed the assessment.', 'warning')
-        return redirect(url_for('admin_app.admin_assessments'))
     
     # Create detailed report content
     output = io.StringIO()
@@ -1077,7 +1163,8 @@ def admin_export_assessment_detailed(assessment_id):
     output.write(f"Status: {'Active' if assessment.is_active else 'Inactive'}\n")
     output.write(f"Total Participants: {total_participants}\n")
     output.write(f"Completed Responses: {completed_responses}\n")
-    output.write(f"Completion Rate: 100%\n\n")
+    completion_rate = (completed_responses / total_participants * 100) if total_participants > 0 else 0
+    output.write(f"Completion Rate: {completion_rate:.1f}%\n\n")
     
     # Group responses by question groups
     question_groups = {}
